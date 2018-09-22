@@ -1,0 +1,2 @@
+jedis-ip=localhost
+jedis-port=6379

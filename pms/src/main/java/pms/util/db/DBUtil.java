@@ -1,15 +1,9 @@
 package pms.util.db;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -19,27 +13,31 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import com.alibaba.fastjson.JSON;
-
-import pms.util.db.dict.sub.OracleDictionary;
-import pms.util.file.FileUtil;
-import pms.util.regex.PatternUtil;
-import pms.util.string.StrUtil;
+import pms.util.StrUtil;
+import pms.util.auth.bean.User;
+import pms.util.comm.lambda.exception.Handler;
+import pms.util.comm.lambda.exception.SimpleExec;
+import pms.util.reflect.Reflector;
 
 public class DBUtil {
-	private static OracleDictionary dict = new OracleDictionary();
+	private static boolean active = false;
 	private static int connCount;
 	private static Connection conn;
 	private static ReentrantLock lock;
+	private static Driver driver;
+	// private static SQLTableParserImpl parser = new SQLTableParserImpl();
 	static {
 		lock = new ReentrantLock(true);
+		driver = new Driver();
 	}
 
-	@SuppressWarnings("finally")
+	public static void init() throws Exception {
+		driver.configure("pms/util/db/db.properties");
+	}
+
 	public static Connection getConnection() {
 		try {
 			lock.lock();
@@ -47,78 +45,43 @@ public class DBUtil {
 			if (conn != null) {
 				return conn;
 			}
-			Properties pros = new Properties();
-			try (InputStream in = DBUtil.class.getResourceAsStream("db.properties")) {
-				pros.load(in);
-			} catch (IOException e) {
-				e.printStackTrace();
+			conn = getNewConnection();
+
+			if (conn != null) {
+				active = true;
 			}
-			String driver = pros.getProperty("jdbc.driver");
-			String url = pros.getProperty("jdbc.url");
-			String username = pros.getProperty("jdbc.username");
-			String password = pros.getProperty("jdbc.password");
-			try {
-				Class.forName(driver);
-			} catch (ClassNotFoundException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			/**
-			 * web 出问题
-			 */
-			/*
-			 * if (driver != null) System.setProperty("jdbc.driver", driver);
-			 */
-			try {
-				conn = (Connection) DriverManager.getConnection(url, username, password);
-			} catch (SQLException e) {
-				e.printStackTrace();
-				conn = null;
-			} finally {
-				return conn;
-			}
+			// System.out.println(conn);
+		} catch (Exception e) {
+			conn = null;
 		} finally {
 			lock.unlock();
 		}
+		return conn;
 	}
 
-	public static String[] createTablesFrom(String sql_file) throws IOException, SQLException {
-		ArrayList<String> fail_tables = new ArrayList<>();
-		try (BufferedReader reader = Files.newBufferedReader(Paths.get(sql_file))) {
-			StringBuilder text = new StringBuilder();
-			String line = null;
-			while ((line = reader.readLine()) != null) {
-				text.append(line.trim());
-			}
-
-			getConnection();
-			Statement state = conn.createStatement();
-			String[] sqls = text.toString().split(";");
-			for (String sql : sqls) {
-				String table = DBUtil.getTableName(sql);
-				System.out.println(table);
-				if (DBUtil.isExist_oracle(table)) {
-					fail_tables.add(table);
-					continue;
-				}
-				state.execute(sql);
-			}
-
+	private static Connection getNewConnection() throws Exception {
+		if (!active) {
+			init();
 		}
-		return fail_tables.toArray(new String[0]);
+		return (Connection) driver.getConnection();
 	}
 
-	private static boolean isExist_oracle(String name) throws SQLException {
-		String sql = String.format("select * from tab where tname='%s'", name.toUpperCase());
+	public static boolean createTable(String sql) {
 		getConnection();
-		return conn.createStatement().executeQuery(sql).next();
+		try {
+			return conn.createStatement().execute(sql);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return false;
+		}
 	}
 
 	public static boolean insert(String sql) {
-		getConnection();
+		System.out.println(sql + ";");
 		try {
 			Statement state = (Statement) getConnection().createStatement();
-			return state.execute(sql);
+			return state.executeUpdate(sql) > 0;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
@@ -153,27 +116,31 @@ public class DBUtil {
 	}
 
 	public static boolean update(String sql) {
-		boolean suc = true;
+		// System.out.println(sql);
+		// boolean suc = true;
 		try {
 			Statement state = (Statement) getConnection().createStatement();
-			suc = state.executeUpdate(sql) != 0;
+			return state.executeUpdate(sql) > 0;
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			suc = false;
+			return false;
 		}
-		return suc;
+		// return suc;
 	}
 
-	public static boolean keyDel(String table, String key, String val) {
-		String sql = String.format("delete from %s where %s = %s", table, key, val);
+	public static Transaction tansation() {
+		return new Transaction().begin();
+	}
+
+	public static boolean keyDel(String table, KV kv) {
+		String sql = String.format("delete from %s where %s", table, kv);
 
 		return DBUtil.update(sql);
 	}
 
-	public static boolean keyDel(String table, KV... keys) {
-		String sql = String.format("delete from %s where %s", table,
-				Arrays.stream(keys).map(KV::toString).collect(Collectors.joining(" and ")));
+	public static boolean keyDel(String table, Keys kv) {
+		String sql = String.format("delete from %s where %s", table, kv);
 
 		return DBUtil.update(sql);
 	}
@@ -189,6 +156,7 @@ public class DBUtil {
 					e.printStackTrace();
 				} finally {
 					conn = null;
+					// active=false;
 				}
 			}
 		} finally {
@@ -196,26 +164,22 @@ public class DBUtil {
 		}
 	}
 
-	/**
-	 * 分页查询
-	 * 
-	 * @param table
-	 * @param col
-	 * @param start
-	 * @param size
-	 * @return
-	 */
-	public static ResultSet page(String table, String col, int start, int size) {
-		return DBUtil.query(dict.page(table, col, start, size, true));
+	public static boolean ifSatisfy(String table, Keys keys) {
+		String sql = "select * from %s where %s";
+		ResultSet rs = DBUtil.query(String.format(sql, table, keys));
+		try {
+			return rs.next();
+		} catch (SQLException e) {
+			return false;
+		}
 	}
 
-	/**
-	 * 插入列名，值
-	 * 
-	 * @param table
-	 * @param values
-	 * @return
-	 */
+	public static ResultSet page(String table, String col, boolean asc, int start, int size) {
+		String sql = "select * from %s order by %s %s  limit %s,%s";
+		sql = String.format(sql, table, col, asc ? "asc" : "desc", start, size);
+		return DBUtil.query(sql);
+	}
+
 	public static boolean insertValues(String table, KV... values) {
 		String sql = String.format("insert into %s(%s) values(%s)", table,
 				Arrays.stream(values).map(kv -> kv.key).collect(Collectors.joining(",")),
@@ -223,20 +187,12 @@ public class DBUtil {
 		return DBUtil.insert(sql);
 	}
 
-	/**
-	 * 插入对象 注意变量名和列名相同
-	 * 
-	 * @param o
-	 * @param clazz
-	 * @param table
-	 * @return
-	 */
-	public static boolean insertObject(Object o, Class<?> clazz, String table) {
+	public static boolean insertObject(Object o, Class<?> clazz, String type) {
 		Field[] fields = clazz.getDeclaredFields();
 		int size = fields.length;
 		Field.setAccessible(fields, true);
 		StringBuilder sql = new StringBuilder("insert into ");
-		sql.append(table);
+		sql.append(type);
 		sql.append(String.format("(%s)", Arrays.stream(fields).map(Field::getName).collect(Collectors.joining(","))));
 		sql.append(" values(");
 		try {
@@ -246,15 +202,12 @@ public class DBUtil {
 						.getDeclaredMethod(String.format("get%s", StrUtil.firstLetterToUpperCase(fields[i].getName())));
 				method.setAccessible(true);
 				Object value = method.invoke(o);
-				if (value instanceof Integer) {
-					sql.append(value.toString());
-				} else {
-					sql.append(String.format("'%s'", value == null ? "" : value.toString()));
-				}
+				sql.append("'" + (value == null ? "" : value.toString()) + "'");
 				if (i != size - 1)
 					sql.append(",");
 			}
 			sql.append(")");
+			// System.out.println(size+sql.toString());
 			return DBUtil.insert(sql.toString());
 		} catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
 				| InvocationTargetException e) {
@@ -266,12 +219,6 @@ public class DBUtil {
 		}
 	}
 
-	/**
-	 * 查看表的列名
-	 * 
-	 * @param rs
-	 * @return
-	 */
 	public static ArrayList<String> columnsOf(ResultSet rs) {
 		ArrayList<String> cols = new ArrayList<>();
 		try {
@@ -286,49 +233,30 @@ public class DBUtil {
 		return cols;
 	}
 
-	/**
-	 * 把结果集包装成一个对象 外部不需要调用rs.next()，否则会跳过数据
-	 * 
-	 * @param rs
-	 * @param clazz
-	 * @return
-	 */
 	public static Object parse(ResultSet rs, Class<?> clazz) {
-		Object inst = null;
-
-		try {
+		return SimpleExec.exec(() -> {
 			if (rs == null || !rs.next()) {
-				return inst;
+				return null;
 			}
 
 			ArrayList<String> cols = DBUtil.columnsOf(rs);
-			inst = clazz.getConstructor().newInstance();
+			Object inst = clazz.getConstructor().newInstance();
 
-			Field[] fields = clazz.getDeclaredFields();
-			int size = fields.length;
-			Field.setAccessible(fields, true);
-			for (int i = 0; i < size; ++i) {
-				String fn = fields[i].getName();
-				if (cols.contains(fn.toLowerCase())) {
-					String value = rs.getObject(fn).toString();
-					fields[i].set(inst, value.toString());
+			HashMap<String, Field> fields = Reflector.getFields(clazz);
+			fields.values().stream().forEach(field -> {
+				String name = field.getName();
+				if (cols.contains(name.toLowerCase())) {
+					SimpleExec.exec(() -> {
+						field.set(inst, rs.getString(name));
+						//System.out.println(name+"="+ rs.getString(name));
+						return null;
+					}, Handler.PRINTTRACE);
 				}
-			}
-		} catch (IllegalArgumentException | IllegalAccessException | SQLException | InstantiationException
-				| InvocationTargetException | NoSuchMethodException | SecurityException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return inst;
+			});
+			return inst;
+		}, Handler.PRINTTRACE);
 	}
 
-	/**
-	 * 把结果集转换成数组列表
-	 * 
-	 * @param rs
-	 * @param clazz
-	 * @return
-	 */
 	public static ArrayList<Object> toArrayList(ResultSet rs, Class<?> clazz) {
 		ArrayList<Object> list = new ArrayList<>();
 		Object obj = new Object();
@@ -341,46 +269,59 @@ public class DBUtil {
 		return list;
 	}
 
-	/**
-	 * 查询单一主键的结果
-	 * 
-	 * @param table
-	 * @param kv
-	 * @return
-	 */
 	public static ResultSet keyQuery(String table, KV kv) {
 		String sql = String.format("select * from %s where %s", table, kv);
 		return DBUtil.query(sql);
 	}
 
-	/**
-	 * 更新某一行多个值
-	 * 
-	 * @param table
-	 * @param keys
-	 *            查询条件名值对
-	 * @param args
-	 *            需要设置的名值对
-	 * @return
-	 */
-	public static boolean updateKeys(String table, Keys keys, KV... kv) {
-		String set = Arrays.stream(kv).map(KV::toString).collect(Collectors.joining(","));
+	public static ResultSet keyOrderedQuery(String table, KV kv, String col, boolean asc) {
+		String sql = String.format("select * from %s where %s order by %s %s", table, kv, col, asc ? "asc" : "desc");
+		return DBUtil.query(sql);
+	}
+
+	public static ResultSet keysQuery(String table, Keys keys) {
+		String sql = String.format("select * from %s where %s", table, keys);
+		return DBUtil.query(sql);
+	}
+
+	public static ResultSet keysOrderedQuery(String table, Keys kv, String col, boolean asc) {
+		String sql = String.format("select * from %s where %s order by %s %s", table, kv, col, asc ? "asc" : "desc");
+		return DBUtil.query(sql);
+	}
+
+	public static boolean keysQueryNotEmpty(String table, Keys keys) {
+		String sql = String.format("select * from %s where %s", table, keys);
+		try {
+			return DBUtil.query(sql).next();
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	public static boolean update(String table, KV key, KV... args) {
+		String set = Arrays.stream(args).map(KV::toString).collect(Collectors.joining(","));
+		String sql = String.format("update %s set %s where %s", table, set, key);
+		// System.out.println(sql);
+		return DBUtil.update(sql);
+	}
+
+	public static boolean updateKeys(String table, Keys keys, KV... kvs) {
+		String set = Arrays.stream(kvs).map(KV::toString).collect(Collectors.joining(","));
 		String sql = String.format("update %s set %s where %s", table, set, keys);
 
 		return DBUtil.update(sql);
 	}
 
-	public static Map<String, Object> rsToMap(ResultSet rs) {
+	public static Map<String, Object> rsToMap(ResultSet rs, String[] cols) {
 		Map<String, Object> map = new HashMap<>();
 
 		if (rs == null) {
 			return map;
 		}
 
-		ArrayList<String> cols = DBUtil.columnsOf(rs);
 		try {
 			while (rs.next()) {
-				cols.stream().forEach(col -> {
+				Arrays.stream(cols).forEach(col -> {
 					try {
 						map.put(col, rs.getObject(col));
 					} catch (SQLException e) {
@@ -397,13 +338,6 @@ public class DBUtil {
 		return map;
 	}
 
-	/**
-	 * 递归查询子分支
-	 * 
-	 * @param table
-	 * @param rs
-	 * @param clazz
-	 */
 	public static void selectRowsByRecursion(String table, RecursionResultSet rs, Class<?> clazz) {
 		KV key_kv = rs.getKey_kv();
 		KV link_kv = rs.getLink_kv();
@@ -437,19 +371,16 @@ public class DBUtil {
 		RecursionResultSet rrs = new RecursionResultSet(clazz);
 		rrs.setKey_kv(key_kv);
 		rrs.setLink_kv(link_kv);
-		rrs.setObj(DBUtil.parse(DBUtil.keyQuery(table, key_kv), clazz));
+		rrs.setObj(DBUtil.parse(DBUtil.keyQuery("msg", key_kv), clazz));
 		selectRowsByRecursion(table, rrs, clazz);
 		return rrs;
-	}
-
-	public static String getTableName(String create_sql) {
-		return PatternUtil.getSubString(create_sql, "create\\s+table\\s+(.*?)\\s*\\(");
 	}
 
 	public static class KV {
 		public String key;
 		public Object value;
 		public String op = "=";
+		private boolean unwrap = false;
 
 		public KV() {
 		}
@@ -459,42 +390,60 @@ public class DBUtil {
 			this.value = v;
 		}
 
+		public KV(String k, Object v, String op) {
+			this.key = k;
+			this.value = v;
+			this.op = op;
+		}
+
+		public KV unwrap() {
+			unwrap = true;
+			return this;
+		}
+
 		public String toString() {
-			return key + op + value;
+			return unwrap ? key + op + value : key + op + "'" + value + "'";
 		}
 
 		public boolean equals(KV kv) {
 			return this.key.equals(kv.key);
 		}
-
-		public String wrap() {
-			return key + op + "'" + value + "'";
-		}
 	}
 
 	public static class Keys {
-		private HashMap<KV, String> keys = new HashMap<>();
+		private ArrayList<KV> kvs = new ArrayList<>();
+		private StringBuilder where = new StringBuilder();
 
-		/**
-		 * 如果后面无则join_str=""
-		 * 
-		 * @param k
-		 * @param join_str
-		 */
-		public void put(KV k, String join_str) {
-			keys.put(k, join_str);
+		public Keys start(KV kv) {
+			if (kvs.size() == 0) {
+				kvs.add(kv);
+				where.append("%s");
+			}
+			return this;
+		}
+
+		public Keys and(KV kv) {
+			kvs.add(kv);
+			if (!kvs.isEmpty()) {
+				where.append(" and %s");
+			}
+			return this;
+		}
+
+		public Keys or(KV kv) {
+			kvs.add(kv);
+			if (!kvs.isEmpty()) {
+				where.append(" or %s");
+			}
+			return this;
+		}
+
+		public String complete() {
+			return String.format(where.toString(), kvs.toArray());
 		}
 
 		public String toString() {
-			StringBuilder str = new StringBuilder();
-			keys.entrySet().forEach(e -> {
-				str.append(e.getKey());
-				str.append(" ");
-				str.append(e.getValue());
-				str.append(" ");
-			});
-
-			return str.toString();
+			return this.complete();
 		}
 	}
 
@@ -541,17 +490,240 @@ public class DBUtil {
 		}
 	}
 
-	public static void main(String[] args) throws IOException, SQLException {
-		DBUtil.getConnection();
-		String[] fails=DBUtil.createTablesFrom(FileUtil.projectFileAbPath("pms/sql/tables.sql", DBUtil.class));
-		System.out.println(fails.length);
-		// for (int i=0;i<100;++i) {
-		// Stu stu=new Stu();
-		// stu.setId(String.valueOf(RandomUtil.randomRangeOf(1000, 10000)));
-		// stu.setNum(String.valueOf(i));
-		// DBUtil.insertObject(stu, Stu.class,"stu");
-		// }
-		String json = JSON.toJSONString(DBUtil.toArrayList(DBUtil.page("stu", "id", 1, 12), Stu.class));
-		System.out.println(json);
+	/**
+	 * 执行事务相关类
+	 * 
+	 * @author delin
+	 *
+	 */
+	public static class Transaction {
+		private ArrayList<String> sqls = new ArrayList<>();
+		private Connection conn;
+
+		public Transaction begin() {
+			try {
+				conn = getNewConnection();
+				conn.setAutoCommit(false);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
+			}
+			return this;
+		}
+
+		public Transaction add(SQL sql) {
+			sqls.add(sql.complete());
+
+			return this;
+		}
+
+		public Transaction add(String sql) {
+			sqls.add(sql);
+
+			return this;
+		}
+
+		public boolean commit() {
+			try {
+				Statement state = (Statement) conn.createStatement();
+
+				for (String sql : sqls) {
+					System.out.println(sql);
+					state.addBatch(sql.toString());
+				}
+
+				state.executeBatch();
+				conn.commit();
+				return true;
+			} catch (SQLException e) {
+				 e.printStackTrace();
+				try {
+					conn.rollback();
+				} catch (SQLException e1) {
+				}
+				return false;
+			} finally {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+				} finally {
+					conn = null;
+				}
+			}
+		}
+	}
+
+	public static class SQL {
+		private StringBuilder sql = new StringBuilder();
+
+		private SQL() {
+		}
+
+		public static SQL create() {
+			return new SQL();
+		}
+
+		public SQL select(KV... kvs) {
+			sql.append("select ");
+			if (kvs == null) {
+				sql.append("* ");
+			} else {
+				sql.append(Arrays.stream(kvs).map(kv -> {
+					kv.op = ".";
+					return kv.toString();
+				}).collect(Collectors.joining(",")));
+				sql.append(" ");
+			}
+			return this;
+		}
+
+		public SQL update(String table) {
+			sql.append("update ");
+			sql.append(table);
+			sql.append(" ");
+			return this;
+		}
+
+		public SQL insert(String table) {
+			sql.append("insert into ");
+			sql.append(table);
+			return this;
+		}
+
+		public SQL delete(String table) {
+			sql.append("delete from ");
+			sql.append(table);
+			sql.append(" ");
+			return this;
+		}
+
+		public SQL values(KV... kvs) {
+			sql.append(Arrays.stream(kvs).map(kv -> kv.key).collect(Collectors.joining(",", "(", ")")));
+			sql.append(" ");
+			sql.append("values");
+			sql.append(Arrays.stream(kvs).map(kv -> "'" + kv.value + "'").collect(Collectors.joining(",", "(", ")")));
+
+			return this;
+		}
+
+		public SQL set(KV... kvs) {
+			sql.append("set ");
+			sql.append(Arrays.stream(kvs).map(KV::toString).collect(Collectors.joining(",")));
+			sql.append(" ");
+
+			return this;
+		}
+
+		public SQL from(String... tables) {
+			String from = Arrays.stream(tables).collect(Collectors.joining(","));
+			sql.append("from ");
+			sql.append(from);
+			sql.append(" ");
+			return this;
+		}
+
+		public SQL where(Keys keys) {
+			sql.append("where ");
+			sql.append(keys.complete());
+			sql.append(" ");
+			return this;
+		}
+
+		public SQL like(String like) {
+			sql.append("like ");
+			sql.append(like);
+			sql.append(" ");
+			return this;
+		}
+
+		public SQL orderBy(String... props) {
+			sql.append("order by ");
+			sql.append(Arrays.stream(props).collect(Collectors.joining(",")));
+			sql.append(" ");
+			return this;
+		}
+
+		public String ASC() {
+			sql.append("asc");
+			return sql.toString();
+		}
+
+		public String desc() {
+			sql.append("desc");
+			return sql.toString();
+		}
+
+		public String complete() {
+			return sql.toString();
+		}
+
+		public String toString() {
+			return this.complete();
+		}
+
+		public String insertObject(String table, Object o) {
+			StringBuilder sql = new StringBuilder();
+			HashMap<String, Field> fields = Reflector.getFields(o.getClass());
+			sql.append("insert into ");
+			sql.append(table);
+			StringBuilder values = new StringBuilder("values(");
+			StringBuilder cols = new StringBuilder("(");
+			fields.entrySet().stream().forEach(entry -> {
+				SimpleExec.exec(() -> {
+					values.append("'");
+					values.append(entry.getValue().get(o));
+					values.append("'");
+					values.append(",");
+					cols.append(entry.getKey());
+					cols.append(",");
+					return null;
+				}, Handler.PRINTTRACE);
+			});
+			values.replace(values.length() - 1, values.length(), ")");
+			cols.replace(cols.length() - 1, cols.length(), ")");
+			sql.append(cols);
+			sql.append(" ");
+			sql.append(values);
+
+			return sql.toString();
+		}
+
+		public String updateObject(String table, Object o, Keys kv) {
+			HashMap<String, Field> fields = Reflector.getFields(o.getClass());
+			StringBuilder sql = new StringBuilder();
+			sql.append("update ");
+			sql.append(table);
+			sql.append(" set ");
+			StringBuilder sets = new StringBuilder();
+			fields.entrySet().stream().forEach(entry -> {
+				SimpleExec.exec(() -> {
+					sets.append(new KV(entry.getKey(), entry.getValue().get(o)));
+					sets.append(",");
+					return null;
+				}, Handler.PRINTTRACE);
+			});
+			sets.delete(sets.length() - 1, sets.length());
+			sql.append(sets);
+			sql.append(" ");
+			sql.append("where ");
+			sql.append(kv);
+
+			return sql.toString();
+		}
+	}
+
+	//
+	public static void main(String... args) throws Exception {
+		DBUtil.init();
+		System.out.println(SQL.create().updateObject("a", new User(), new Keys().start(new KV("id", "1"))));
+	}
+
+	public static ResultSet queryAll(String table, String[] cols) {
+		KV[] kvs = null;
+		if (cols != null) {
+			kvs = Arrays.stream(cols).map(col -> new KV(table, col)).toArray(KV[]::new);
+		}
+		return DBUtil.query(SQL.create().select(kvs).from(table).complete());
 	}
 }
