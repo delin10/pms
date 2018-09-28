@@ -1,13 +1,19 @@
 package pms.util.file;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import pms.util.comm.lambda.exception.Handler;
+import pms.util.comm.lambda.exception.SimpleExec;
 
 public class FileUtil {
 
@@ -21,6 +27,14 @@ public class FileUtil {
 			}
 		}
 		return text.toString();
+	}
+	
+	public static void writeText(String relative,String file,String text) throws IOException {	
+		System.out.println(FileUtil.removeProtocol(FileUtil.class.getClassLoader().getResource(relative)));
+		try(BufferedWriter writer=Files.newBufferedWriter(Paths.get(FileUtil.removeProtocol(FileUtil.class.getClassLoader().getResource(relative))+"/"+file),StandardOpenOption.CREATE_NEW)){
+			writer.write(text);
+		}
+		
 	}
 
 	public static void notExistCreate(String path) {
@@ -115,8 +129,10 @@ public class FileUtil {
 
 	public static String removeProtocol(URL url) {
 		String protocol = url.getProtocol();
+		return (String) SimpleExec.exec(data->{
+			return URLDecoder.decode(url.toString().replaceAll(protocol + ":/", ""),"utf-8");
+		}, Handler.PRINTTRACE);
 
-		return url.toString().replaceAll(protocol + ":/", "");
 	}
 	
 	public static String getwebRoot(String proname) {

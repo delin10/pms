@@ -28,6 +28,9 @@ public class RedisDriver {
 		}
 	}
 	
+	public boolean ready() {
+		return jedis!=null && jedis.isConnected();
+	}
 	public  Jedis getInstance() {
 		return jedis;
 	}
@@ -61,12 +64,17 @@ public class RedisDriver {
 	}
 	
 	public  boolean set(String k,Object v) {
+		//System.out.println(jedis);
 		String res=jedis.set(k.getBytes(),SerializeUtil.serialize(v));
 		return "ok".equalsIgnoreCase(res);
 	}
 	
 	public boolean set(String table,String id,Object v) {
 		return set(combine(table,id),v);
+	}
+	
+	public boolean set_default(String table,String id,String v) {
+		return "ok".equals(jedis.set(combine(table,id), v));
 	}
 	
 	public Object get(String table,String id) {
@@ -123,7 +131,7 @@ public class RedisDriver {
 	}
 	
 	public void remove(String key) {
-		System.out.println(key);
+		//System.out.println(key);
 		jedis.del(key);
 	}
 	
@@ -146,6 +154,14 @@ public class RedisDriver {
 	
 	public Set<String> keys(String pattern){
 		return jedis.keys(pattern);
+	}
+	
+	public String inc(String key) {
+		return ""+jedis.incr(key);
+	}
+	
+	public String inc(String table,String key) {
+		return ""+jedis.incr(combine(table,key));
 	}
 	
 	public void close() {

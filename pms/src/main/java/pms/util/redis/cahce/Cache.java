@@ -6,8 +6,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
-import pms.util.auth.bean.Role;
+import pms.util.auth.Getter;
+import pms.util.comm.lambda.exception.Handler;
+import pms.util.comm.lambda.exception.SimpleExec;
 import pms.util.db.DBUtil;
 import pms.util.db.DBUtil.KV;
 import pms.util.db.DBUtil.Keys;
@@ -21,8 +24,9 @@ import pms.util.system.hook.HookUtil;
 
 public class Cache {
 	private static RedisDriver driver = new RedisDriver();
-	private static Scheduler scheduler = new Scheduler().init(10,true);
+	private static Scheduler scheduler = new Scheduler().init(10, true);
 	private static HashMap<String, CacheSwap> swaps = new HashMap<>();
+	private static ReentrantLock lock = new ReentrantLock(true);
 	private static final String TEMP_KEY = "cache_rw";
 	static {
 		DriverConfig conf = new DriverConfig();
@@ -32,12 +36,12 @@ public class Cache {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		//driver = new RedisDriver();
+		// driver = new RedisDriver();
 		RedisDriver.getInstance(conf);
-		HookUtil.addHook(()->{
+		HookUtil.addHook(() -> {
 			System.out.println("exit...");
 			scheduler.shutdownNow();
-			swaps.values().forEach(swap->swap.destroy());
+			swaps.values().forEach(swap -> swap.destroy());
 		});
 	}
 
@@ -76,15 +80,22 @@ public class Cache {
 		private String id;
 		private Set<String> update_id = new HashSet<>();
 		private Controllable thread;
+		private String redis_key;
+		private boolean MAX_ID;
+		private String MAX_ID_KEY="MAX_ID";
 
+		/**
+		 * @param table
+		 *            关联的表名
+		 * @param id
+		 *            关联的表的唯一主键
+		 * @param row
+		 *            表行关联的bean对象
+		 */
 		public CacheSwap(String table, String id, Class<?> row) {
 			this.table = table;
 			this.row = row;
 			this.id = id;
-		}
-
-		public void cacheNow() {
-
 		}
 
 		public void cacheAll() {
@@ -92,57 +103,83 @@ public class Cache {
 			Object o = DBUtil.parse(rs, row);
 			try {
 				while (o != null) {
-					String key = ""+Reflector.get(o, id);
-					System.out.println(key);
+					String key = "" + Reflector.get(o, id);
+					// System.out.println(key);
 					driver.set(table, key, o);
 					o = DBUtil.parse(rs, row);
+				}
+				if (MAX_ID) {
+					SimpleExec.exec(data->{
+						driver.set_default(table, MAX_ID_KEY, DBUtil.max(table, id, "0"));
+						return null;
+					}, Handler.PRINTTRACE);
+					
 				}
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
+		
+		public String getMaxId() {
+			return (String) driver.get(table, MAX_ID_KEY);
+		}
+		
+		public String incMaxId() {
+			return driver.inc(table,MAX_ID_KEY);
+		}
 
-		public void updateCache(Object o) {
+		public boolean updateCache(Object o) {
 			Object key = null;
 			try {
 				key = Reflector.get(o, id);
 			} catch (Exception e) {
 				e.printStackTrace();
-				return;
+				return false;
 			}
 			if (key == null) {
-				return;
+				return false;
 			}
-			String id=key.toString();
+			String id = key.toString();
 			String key_str = driver.combine(table, id);
-			record(key_str, driver.contains(key_str) ? "update" : "insert");
-			update_id.add(id);
-			driver.set(key_str, o);
-		}
-
-		public void deleteCache(Object o) {
-			String key = null;
 			try {
-				key = Reflector.get(o, id).toString();
-			} catch (Exception e) {
-				e.printStackTrace();
-				return;
+				lock.lock();
+				if (record(key_str, driver.contains(key_str) ? "update" : "insert")) {
+					// 如果存在则无法添加
+					update_id.add(id);
+					return driver.set(key_str, o);
+				}
+				return false;
+			} finally {
+				lock.unlock();
 			}
-			update_id.add(key);
-			record(key, "delete");
 		}
 
-		public void record(String key, String op) {
+		public boolean deleteCache(String id) {
+			try {
+				lock.lock();
+				String key_str = driver.combine(table, id);
+				if ("insert".equals(driver.get(TEMP_KEY, key_str))) {
+					driver.remove(TEMP_KEY, key_str);
+					driver.remove(key_str);
+					return true;
+				}
+				update_id.add(id);
+				return record(id, "delete");
+			} finally {
+				lock.unlock();
+			}
+		}
+
+		public boolean record(String key, String op) {
 			if ("delete".equals(op)) {
-				driver.set(TEMP_KEY, key, op);
-				return;
+				return driver.set(TEMP_KEY, key, op);
 			}
 
 			if ("insert".equals(driver.get(TEMP_KEY, key))) {
-				return;
+				return true;
 			}
-			driver.set(TEMP_KEY, key, op);
+			return driver.set(TEMP_KEY, key, op);
 		}
 
 		public Object get(String id) {
@@ -150,34 +187,42 @@ public class Cache {
 		}
 
 		public void sync() {
-			Transaction trans = DBUtil.tansation();
-			trans.begin();
-			update_id.forEach(id -> {
-				String key = driver.combine(table, id);
-				String op = "" + driver.get(TEMP_KEY, key);
-				Object data = driver.get(key);
-				if ("insert".equals(op)) {
-					String sql = DBUtil.SQL.create().insertObject(table, data);
-					trans.add(sql);
-				} else if ("update".equals(op)) {
-					String sql = DBUtil.SQL.create().updateObject(table, data, new Keys().start(new KV(this.id, id)));
-					trans.add(sql);
-				} else if ("delete".equals(op)) {
-					String sql = DBUtil.SQL.create().delete(table).where(new Keys().start(new KV(this.id, id)))
-							.complete();
-					trans.add(sql);
-				}
-				
-				driver.remove(TEMP_KEY,key);
-			});
-			trans.commit();
-			update_id.clear();
+			try {
+				lock.lock();
+				Transaction trans = DBUtil.transaction();
+				trans.begin();
+				update_id.forEach(id -> {
+					String key = driver.combine(table, id);
+					String op = "" + driver.get(TEMP_KEY, key);
+					Object data = driver.get(key);
+					if ("insert".equals(op)) {
+						String sql = DBUtil.SQL.create().insertObject(table, data);
+						trans.add(sql);
+					} else if ("update".equals(op)) {
+						String sql = DBUtil.SQL.create().updateObject(table, data,
+								new Keys().start(new KV(this.id, id)));
+						trans.add(sql);
+					} else if ("delete".equals(op)) {
+						String sql = DBUtil.SQL.create().delete(table).where(new Keys().start(new KV(this.id, id)))
+								.complete();
+						trans.add(sql);
+					}
+
+					driver.remove(TEMP_KEY, key);
+				});
+				trans.commit();
+				update_id.clear();
+			} finally {
+				lock.unlock();
+			}
 
 		}
 
 		public void destroy() {
-			driver.keys(table+"*").stream().forEach(driver::remove);
-			driver.keys(TEMP_KEY+"*").stream().forEach(driver::remove);
+			sync();
+			driver.keys(table + "*").stream().forEach(driver::remove);
+			driver.remove(table, MAX_ID_KEY);
+			// driver.keys(TEMP_KEY+"*").stream().forEach(driver::remove);
 		}
 
 		public void start() {
@@ -223,25 +268,16 @@ public class Cache {
 			this.redis_key = redis_key;
 		}
 
-		private String redis_key;
+		public boolean isMAX_ID() {
+			return MAX_ID;
+		}
 
+		public void setMAX_ID(boolean mAX_ID) {
+			MAX_ID = mAX_ID;
+		}
 	}
 
-	public static void main(String... args) throws InterruptedException {
-		Cache cache = new Cache();
-		CacheSwap swap = new CacheSwap("roles", "id", Role.class);
-		cache.register(swap);
-		int id = 1;
-		while (true) {
-			Thread.sleep(3000);
-			Role role = new Role();
-			role.setId("" + id++);
-			role.setAvailable("1");
-			role.setDescription("测试");
-			role.setName("测试");
-			System.out.println(role.getId());
-			cache.get("roles").updateCache(role);
-		}
-		//scheduler.shutdownNow();
+	public static void main(String... args) throws InterruptedException, IOException {
+		System.out.println(Getter.cache.get("roles").incMaxId());
 	}
 }

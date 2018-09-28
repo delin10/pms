@@ -4,10 +4,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -22,12 +25,71 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import pms.util.PatternUtil;
+import pms.util.comm.lambda.exception.Handler;
+import pms.util.comm.lambda.exception.SimpleExec;
+import pms.util.comm.lambda.param.ParamWrapper;
+import pms.util.excel.anno.Excel;
+import pms.util.excel.anno.ExcelColumn;
 import pms.util.file.FileUtil;
+import pms.util.reflect.Reflector;
 
 public class ExcelTranslator {
 	private final static String Excel_2003 = "xls"; // 2003 版本的excel
 	private final static String Excel_2007 = "xlsx"; // 2007 版本的excel
 	private HSSFWorkbook wb = null;
+	private Map<Class<?>, Map<String, String>> map;
+
+	@SuppressWarnings("unchecked")
+	public Map<String, String> register(Class<?> clazz) {
+		if (map == null) {
+			map = new HashMap<>();
+		}
+
+		Map<String, String> mappers = map.get(clazz);
+		if (mappers != null) {
+			return mappers;
+		}
+		mappers = new HashMap<>();
+		Excel excel_anno = clazz.getDeclaredAnnotation(Excel.class);
+		if (excel_anno != null) {
+			// Excel annotation to do something
+		}
+		ParamWrapper wrapper = ParamWrapper.instance().set(mappers);
+
+		HashMap<String, Field> fields = Reflector.getFields(clazz);
+		fields.values().forEach(field -> {
+			ExcelColumn col = field.getAnnotation(ExcelColumn.class);
+			//System.out.println(col);
+			if (col != null && !col.Column().isEmpty()) {
+				((Map<String, String>) wrapper.get()).put(field.getName(), col.Column());
+			}
+		});
+		return mappers;
+	}
+
+	public ExcelTranslator transToExcel(String sheetName, ArrayList<Object> list, Class<?> clazz) {
+		Map<String, String> mappers = register(clazz);
+		ArrayList<String> attrs=new ArrayList<>();
+		ArrayList<String> columns=new ArrayList<>();
+		mappers.entrySet().stream().forEach(entry->{
+			attrs.add(entry.getKey());
+			columns.add(entry.getValue());
+		});
+		//System.out.println("attr-size:"+attrs.size());
+		ArrayList<String[]> rows=new ArrayList<>();
+		list.forEach(e -> {
+			ArrayList<String> ls = new ArrayList<>();
+			attrs.stream().forEach(attr -> {
+				SimpleExec.exec((data) -> {
+					ls.add(""+Reflector.get(e, attr));
+					return null;
+				}, Handler.PRINTTRACE);
+			});
+			rows.add(ls.toArray(new String[0]));
+		});
+		
+		return transToExcel(sheetName,columns.toArray(new String[0]),rows.toArray(new String[0][]));
+	}
 
 	public ExcelTranslator transToExcel(String sheetName, String[] title, String[][] values) {
 		wb = new HSSFWorkbook();
@@ -91,7 +153,7 @@ public class ExcelTranslator {
 				TableObject table = new TableObject(sheet.getRow(0).getPhysicalNumberOfCells());
 				System.out.println(sheet.getNumMergedRegions());
 				sheet.forEach(row -> {
-					
+
 					if (row != null) {
 						ArrayList<String> cells = new ArrayList<>();
 						row.forEach(cell -> {
@@ -117,13 +179,13 @@ public class ExcelTranslator {
 			work.forEach(sheet -> {
 				if (sheet != null) {
 					TableObject table = new TableObject(sheet.getRow(0).getPhysicalNumberOfCells());
-					//System.out.println(sheet.getNumMergedRegions());
+					// System.out.println(sheet.getNumMergedRegions());
 					sheet.forEach(row -> {
-						
+
 						if (row != null) {
 							ArrayList<String> cells = new ArrayList<>();
 							row.forEach(cell -> {
-								String value=this.getCellValue(cell);
+								String value = this.getCellValue(cell);
 								if (!value.isEmpty()) {
 									cells.add(value);
 								}
@@ -149,19 +211,19 @@ public class ExcelTranslator {
 			value = "";
 			break;
 		default:
-			String cell_str=cell.toString();
+			String cell_str = cell.toString();
 			try {
 				if (PatternUtil.isNumber(cell_str)) {
-					value=""+cell.getNumericCellValue();
-				}else {
-					value = ""+cell.getDateCellValue().toInstant().getEpochSecond();
+					value = "" + cell.getNumericCellValue();
+				} else {
+					value = "" + cell.getDateCellValue().toInstant().getEpochSecond();
 				}
 			} catch (IllegalStateException e) {
 				value = String.valueOf(cell.getRichStringCellValue());
 			}
 			break;
 		}
-		//System.out.println(value);
+		// System.out.println(value);
 		return value;
 	}
 
@@ -180,9 +242,9 @@ public class ExcelTranslator {
 		private ArrayList<String[]> rows = new ArrayList<>();
 
 		public TableObject(int num) {
-			col_num=num;
+			col_num = num;
 		}
-		
+
 		public void addRow(String[] row) {
 			rows.add(row);
 		}
@@ -190,17 +252,20 @@ public class ExcelTranslator {
 		public ArrayList<String[]> getRows() {
 			return rows;
 		}
-		
+
 		public ArrayList<String[]> getValidRows() {
-			return rows.stream().filter(arr->arr.length==col_num).collect(Collectors.toCollection(ArrayList<String[]>::new));
+			return rows.stream().filter(arr -> arr.length == col_num)
+					.collect(Collectors.toCollection(ArrayList<String[]>::new));
 		}
-		
+
 		public ArrayList<String[]> getRowOf(int cell_num) {
-			return rows.stream().filter(arr->arr.length==cell_num).collect(Collectors.toCollection(ArrayList<String[]>::new));
+			return rows.stream().filter(arr -> arr.length == cell_num)
+					.collect(Collectors.toCollection(ArrayList<String[]>::new));
 		}
-		
+
 		public ArrayList<String[]> getRowOf(Set<Integer> cell_num) {
-			return rows.stream().filter(arr->cell_num.contains(arr.length)).collect(Collectors.toCollection(ArrayList<String[]>::new));
+			return rows.stream().filter(arr -> cell_num.contains(arr.length))
+					.collect(Collectors.toCollection(ArrayList<String[]>::new));
 		}
 
 		public String toString() {

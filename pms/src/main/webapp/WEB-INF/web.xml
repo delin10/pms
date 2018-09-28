@@ -3,5 +3,45 @@
  "http://java.sun.com/dtd/web-app_2_3.dtd" >
 
 <web-app>
-  <display-name>Archetype Created Web Application</display-name>
+	<display-name>Archetype Created Web Application</display-name>
+	<filter>
+		<filter-name>CheckResource</filter-name>
+		<display-name>CheckResource</display-name>
+		<description></description>
+		<filter-class>pms.filter.CheckResource</filter-class>
+	</filter>
+	<filter>
+		<filter-name>EncodeFilter</filter-name>
+		<display-name>EncodeFilter</display-name>
+		<description></description>
+		<filter-class>pms.filter.EncodeFilter</filter-class>
+	</filter>
+	<filter>
+		<filter-name>CrosFilter</filter-name>
+		<display-name>CrosFilter</display-name>
+		<description></description>
+		<filter-class>pms.filter.CrosFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>CheckResource</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>EncodeFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>CrosFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	<servlet>
+		<servlet-name>SystemServlet</servlet-name>
+		<display-name>SystemServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.SystemServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>SystemServlet</servlet-name>
+		<url-pattern>/setting</url-pattern>
+	</servlet-mapping>
 </web-app>

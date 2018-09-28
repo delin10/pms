@@ -13,7 +13,8 @@ public enum TypeDictionary {
 	DECIMAL("DECIMAL",2),
 	NUMBER("NUMBER",2),
 	DATETIME("DATETIME",0),
-	TIMESTAMP("TIMESTAMP",0);
+	TIMESTAMP("TIMESTAMP",0),
+	BLOB("BLOB",0);
 	private String value;
 	private int limit;
 	

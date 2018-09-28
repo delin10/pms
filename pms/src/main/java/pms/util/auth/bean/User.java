@@ -1,6 +1,12 @@
 package pms.util.auth.bean;
 
-public class User {
+import java.io.Serializable;
+
+import pms.util.reflect.anno.Skip;
+
+public class User implements Serializable{
+	@Skip(skip=true)
+	private static final long serialVersionUID = -7697007125728613034L;
 	private String id;
 	private String owner_id;
 	private String pwd;

@@ -115,6 +115,7 @@ public class FileUtil {
 
 	public static String removeProtocol(URL url) {
 		String protocol = url.getProtocol();
+		System.out.println(url.toString().replaceAll(protocol + ":/", ""));
 
 		return url.toString().replaceAll(protocol + ":/", "");
 	}

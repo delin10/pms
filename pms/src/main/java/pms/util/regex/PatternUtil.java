@@ -19,7 +19,7 @@ public class PatternUtil {
 		Matcher matcher=pattern.matcher(source);
 		
 		if (matcher.find()) {
-			return matcher.group(1);
+			return matcher.group(0);
 		}
 		return "";
 	}

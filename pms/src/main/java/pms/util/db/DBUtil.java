@@ -1,8 +1,7 @@
 package pms.util.db;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,25 +12,36 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import pms.util.StrUtil;
-import pms.util.auth.bean.User;
 import pms.util.comm.lambda.exception.Handler;
 import pms.util.comm.lambda.exception.SimpleExec;
+import pms.util.comm.lambda.param.ParamWrapper;
+import pms.util.db.parser.SQLTableParserImpl;
+import pms.util.file.FileUtil;
 import pms.util.reflect.Reflector;
+import pms.util.schedule.Scheduler;
+import pms.util.system.hook.HookUtil;
 
 public class DBUtil {
+	private static Scheduler scheduler;
 	private static boolean active = false;
 	private static int connCount;
 	private static Connection conn;
 	private static ReentrantLock lock;
 	private static Driver driver;
+	private static String os = null;
 	// private static SQLTableParserImpl parser = new SQLTableParserImpl();
 	static {
 		lock = new ReentrantLock(true);
 		driver = new Driver();
+		os = System.getProperty("os.name").toLowerCase();
+		HookUtil.addHook(()->{
+			DBUtil.closeNow();
+		});
 	}
 
 	public static void init() throws Exception {
@@ -42,11 +52,12 @@ public class DBUtil {
 		try {
 			lock.lock();
 			++connCount;
+			//System.out.println(conn);
 			if (conn != null) {
 				return conn;
 			}
 			conn = getNewConnection();
-
+			conn.setAutoCommit(true);
 			if (conn != null) {
 				active = true;
 			}
@@ -78,10 +89,9 @@ public class DBUtil {
 	}
 
 	public static boolean insert(String sql) {
-		System.out.println(sql + ";");
 		try {
 			Statement state = (Statement) getConnection().createStatement();
-			return state.executeUpdate(sql) > 0;
+			return state.executeUpdate(sql)>0;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
@@ -93,6 +103,7 @@ public class DBUtil {
 		getConnection();
 		ResultSet rs = null;
 		try {
+			//System.out.println(sql);
 			Statement state = (Statement) getConnection().createStatement();
 			rs = state.executeQuery(sql);
 		} catch (SQLException e) {
@@ -129,7 +140,7 @@ public class DBUtil {
 		// return suc;
 	}
 
-	public static Transaction tansation() {
+	public static Transaction transaction() {
 		return new Transaction().begin();
 	}
 
@@ -143,6 +154,97 @@ public class DBUtil {
 		String sql = String.format("delete from %s where %s", table, kv);
 
 		return DBUtil.update(sql);
+	}
+
+	/**
+	 * backup orcle with user models
+	 * 
+	 * @param name
+	 *            username
+	 * @param pwd
+	 *            userpwd
+	 * @param path
+	 *            export path
+	 * @param buffer
+	 *            the size of buffer
+	 */
+	public static void backup_exp(String path, int buffer) {
+		String cmd = os.contains("windows")
+				? String.format("cmd /c start cmd.exe /c exp %s/%s@XE buffer=%s file=%s grants=y owner=%s",
+						driver.getUsername(), driver.getPassword(), path, buffer, driver.getUsername())
+				: os.contains("linux") ? String.format("exp %s/%s@XE buffer=%s file=%s grants=y owner=%s",
+						driver.getUsername(), driver.getPassword(), path, buffer, driver.getUsername()) : "exit";
+
+		SimpleExec.exec((data) -> {
+			Process process = Runtime.getRuntime().exec(cmd);
+			data.setValue(process);
+			process.waitFor();
+			return null;
+		}, Handler.PRINTTRACE, (data) -> {
+			((Process) data.getValue()).destroy();
+		});
+	}
+
+	/**
+	 * restore oracle database
+	 * 
+	 * @param name
+	 *            username
+	 * @param pwd
+	 *            userpwd
+	 * @param path
+	 *            export path
+	 * @param buffer
+	 *            the size of buffer
+	 */
+	public static void restore_imp(String path, int buffer) {
+		String cmd = os.contains("windows")
+				? String.format("cmd /c start cmd.exe /c imp %s/%s  file=%s buffer=%s ignore=Y", driver.getUsername(),
+						driver.getPassword(), path, buffer, driver.getUsername())
+				: os.contains("linux")
+						? String.format("imp %s/%s  file=%s buffer=%s ignore=Y", driver.getUsername(),
+								driver.getPassword(), path, buffer, driver.getUsername())
+						: "exit";
+		SimpleExec.exec((data) -> {
+			Process process = Runtime.getRuntime().exec(cmd);
+			data.setValue(process);
+			process.waitFor();
+			return null;
+		}, Handler.PRINTTRACE, (data) -> {
+			((Process) data.getValue()).destroy();
+		});
+
+	}
+
+	public static void backup_exp_oracle_tables(String path, int buffer, ArrayList<String> tables) {
+		String tables_str = tables.stream().collect(Collectors.joining(","));
+		String cmd = os.contains("windows")
+				? String.format("cmd /c start cmd.exe /c exp %s/%s@XE buffer=%s file=%s tables=(%s)",
+						driver.getUsername(), driver.getPassword(), path, tables_str)
+				: os.contains("linux") ? String.format("exp %s/%s@XE buffer=%s file=%s tables=(%s)",
+						driver.getUsername(), driver.getPassword(), path, tables_str) : "exit";
+		SimpleExec.exec((data) -> {
+			Process process = Runtime.getRuntime().exec(cmd);
+			data.setValue(process);
+			process.waitFor();
+			return null;
+		}, Handler.PRINTTRACE, (data) -> {
+			((Process) data.getValue()).destroy();
+		});
+	}
+
+	public static void initSheduler() {
+		scheduler = new Scheduler().init(10, true);
+	}
+
+	public static void sheduleBackup(int timeout, String path) {
+		scheduler.scheduleControllable(() -> {
+			backup_exp(path, 1024);
+		}, timeout, TimeUnit.SECONDS, "back_up");
+	}
+
+	public static void shutdownBackup() {
+		scheduler.shutdown("back_up");
 	}
 
 	public static void close() {
@@ -163,6 +265,13 @@ public class DBUtil {
 			lock.unlock();
 		}
 	}
+	
+	public static void closeNow() {
+		SimpleExec.exec((data)->{
+			conn.close();
+			return null;
+		}, Handler.PRINTTRACE);
+	}
 
 	public static boolean ifSatisfy(String table, Keys keys) {
 		String sql = "select * from %s where %s";
@@ -181,42 +290,33 @@ public class DBUtil {
 	}
 
 	public static boolean insertValues(String table, KV... values) {
+		DBUtil.insertValues("table", new KV("",""),new KV("",""));
 		String sql = String.format("insert into %s(%s) values(%s)", table,
 				Arrays.stream(values).map(kv -> kv.key).collect(Collectors.joining(",")),
-				Arrays.stream(values).map(kv -> kv.value.toString()).collect(Collectors.joining(",")));
+				Arrays.stream(values).map(kv -> "'"+kv.value.toString()+"'").collect(Collectors.joining(",")));
 		return DBUtil.insert(sql);
 	}
 
 	public static boolean insertObject(Object o, Class<?> clazz, String type) {
-		Field[] fields = clazz.getDeclaredFields();
-		int size = fields.length;
-		Field.setAccessible(fields, true);
+		HashMap<String, Field> fields = Reflector.getFields(clazz);
+		String[] fields_arr = fields.keySet().toArray(new String[0]);
+		int size = fields_arr.length;
 		StringBuilder sql = new StringBuilder("insert into ");
 		sql.append(type);
-		sql.append(String.format("(%s)", Arrays.stream(fields).map(Field::getName).collect(Collectors.joining(","))));
+		sql.append(String.format("(%s)", Arrays.stream(fields_arr).collect(Collectors.joining(","))));
 		sql.append(" values(");
-		try {
-
+		SimpleExec.exec(data->{
 			for (int i = 0; i < size; ++i) {
-				Method method = clazz
-						.getDeclaredMethod(String.format("get%s", StrUtil.firstLetterToUpperCase(fields[i].getName())));
-				method.setAccessible(true);
-				Object value = method.invoke(o);
+				Object value = Reflector.getter(clazz, fields_arr[i]).invoke(o);
 				sql.append("'" + (value == null ? "" : value.toString()) + "'");
 				if (i != size - 1)
 					sql.append(",");
 			}
-			sql.append(")");
-			// System.out.println(size+sql.toString());
-			return DBUtil.insert(sql.toString());
-		} catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
-				| InvocationTargetException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return false;
-		} finally {
-			DBUtil.close();
-		}
+			return null;
+		}, Handler.PRINTTRACE);
+	
+		sql.append(")");
+		return DBUtil.insert(sql.toString());
 	}
 
 	public static ArrayList<String> columnsOf(ResultSet rs) {
@@ -234,7 +334,7 @@ public class DBUtil {
 	}
 
 	public static Object parse(ResultSet rs, Class<?> clazz) {
-		return SimpleExec.exec(() -> {
+		return SimpleExec.exec((data) -> {
 			if (rs == null || !rs.next()) {
 				return null;
 			}
@@ -246,9 +346,9 @@ public class DBUtil {
 			fields.values().stream().forEach(field -> {
 				String name = field.getName();
 				if (cols.contains(name.toLowerCase())) {
-					SimpleExec.exec(() -> {
-						field.set(inst, rs.getString(name));
-						//System.out.println(name+"="+ rs.getString(name));
+					SimpleExec.exec((wrapper) -> {
+						Reflector.setter(clazz, name).invoke(inst, rs.getString(name));
+						// System.out.println(name+"="+ rs.getString(name));
 						return null;
 					}, Handler.PRINTTRACE);
 				}
@@ -267,6 +367,32 @@ public class DBUtil {
 			}
 		}
 		return list;
+	}
+	
+	public static ArrayList<String> toArrayListOf(String col,ResultSet rs){
+		ArrayList<String> list = new ArrayList<>();
+		SimpleExec.exec(data->{
+			while (rs.next()) {
+				list.add(rs.getString(col));
+			}
+			return null;
+		}, e->{
+			e.printStackTrace();
+		});
+		
+		return list;
+	}
+	
+	public static String max(String table,String col,String default_value) {
+		ResultSet rs=DBUtil.query(SQL.create().selectMax(col).from(table).complete());
+		String max=(String) SimpleExec.exec(data->{
+			if (rs.next()){
+			return rs.getString(1);
+		}
+			return default_value;
+		}, Handler.PRINTTRACE);
+		
+		return max==null?default_value:max;
 	}
 
 	public static ResultSet keyQuery(String table, KV kv) {
@@ -306,6 +432,8 @@ public class DBUtil {
 	}
 
 	public static boolean updateKeys(String table, Keys keys, KV... kvs) {
+		//where 1=2
+		//update("",new Keys().start(new KV("age","").op("¡·")).and(new KV()),)
 		String set = Arrays.stream(kvs).map(KV::toString).collect(Collectors.joining(","));
 		String sql = String.format("update %s set %s where %s", table, set, keys);
 
@@ -401,6 +529,10 @@ public class DBUtil {
 			return this;
 		}
 
+		public KV op(String op) {
+			this.op=op;
+			return this;
+		}
 		public String toString() {
 			return unwrap ? key + op + value : key + op + "'" + value + "'";
 		}
@@ -525,11 +657,14 @@ public class DBUtil {
 		}
 
 		public boolean commit() {
+			ParamWrapper wrapper=ParamWrapper.instance();
+			Statement state=null;
 			try {
-				Statement state = (Statement) conn.createStatement();
-
+				state= (Statement) conn.createStatement();
+				wrapper.set(state);
+				
 				for (String sql : sqls) {
-					System.out.println(sql);
+					//System.out.println(sql);
 					state.addBatch(sql.toString());
 				}
 
@@ -537,19 +672,23 @@ public class DBUtil {
 				conn.commit();
 				return true;
 			} catch (SQLException e) {
-				 e.printStackTrace();
-				try {
+				SimpleExec.exec(data->{
 					conn.rollback();
-				} catch (SQLException e1) {
-				}
+					return null;
+				},Handler.CARELESS);
+				e.printStackTrace();
 				return false;
-			} finally {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-				} finally {
-					conn = null;
-				}
+			}finally {
+				SimpleExec.exec(data->{
+					if (wrapper.get()!=null) {
+						((Statement)wrapper.get()).close();
+					}
+					if (conn!=null) {
+						conn.close();
+					}
+					conn=null;
+					return null;
+				},Handler.PRINTTRACE);
 			}
 		}
 	}
@@ -575,6 +714,14 @@ public class DBUtil {
 				}).collect(Collectors.joining(",")));
 				sql.append(" ");
 			}
+			return this;
+		}
+		
+		public SQL selectMax(String col) {
+			sql.append("select max(");
+			sql.append(col);
+			sql.append(")");
+			sql.append(" ");
 			return this;
 		}
 
@@ -670,7 +817,7 @@ public class DBUtil {
 			StringBuilder values = new StringBuilder("values(");
 			StringBuilder cols = new StringBuilder("(");
 			fields.entrySet().stream().forEach(entry -> {
-				SimpleExec.exec(() -> {
+				SimpleExec.exec((data) -> {
 					values.append("'");
 					values.append(entry.getValue().get(o));
 					values.append("'");
@@ -697,7 +844,7 @@ public class DBUtil {
 			sql.append(" set ");
 			StringBuilder sets = new StringBuilder();
 			fields.entrySet().stream().forEach(entry -> {
-				SimpleExec.exec(() -> {
+				SimpleExec.exec((data) -> {
 					sets.append(new KV(entry.getKey(), entry.getValue().get(o)));
 					sets.append(",");
 					return null;
@@ -713,17 +860,33 @@ public class DBUtil {
 		}
 	}
 
-	//
-	public static void main(String... args) throws Exception {
-		DBUtil.init();
-		System.out.println(SQL.create().updateObject("a", new User(), new Keys().start(new KV("id", "1"))));
-	}
-
 	public static ResultSet queryAll(String table, String[] cols) {
 		KV[] kvs = null;
 		if (cols != null) {
 			kvs = Arrays.stream(cols).map(col -> new KV(table, col)).toArray(KV[]::new);
 		}
 		return DBUtil.query(SQL.create().select(kvs).from(table).complete());
+	}
+	
+	public static void main(String... args) throws Exception {
+		DBUtil.init();
+		testTable();
+	}
+	
+	public static void testTable() throws IOException {
+		String text = FileUtil.readText("pms/pms.sql", true);
+		SQLTableParserImpl parser=new SQLTableParserImpl();
+
+		String[] sqls = text.split(";");
+		Arrays.stream(sqls).forEach(sql -> {
+			//sSystem.out.println(sql);
+			parser.parse(sql);
+			try {
+				FileUtil.writeText("pms/bean",StrUtil.firstLetterToUpperCase(parser.getTable())+".java", parser.toBean(sql));
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		});
 	}
 }

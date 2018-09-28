@@ -13,6 +13,7 @@ public class WordDictionary {
 		type_dict.put("CHAR", "String");
 		type_dict.put("TEXT", "String");
 		type_dict.put("CLOB", "String");
+		type_dict.put("BLOB", "InputStream");
 		type_dict.put("DATETIME", "String");
 		type_dict.put("TIMESTAMP", "String");
 		type_dict.put("INT", "String");

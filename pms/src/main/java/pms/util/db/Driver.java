@@ -9,8 +9,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import pms.util.FileUtil;
 import pms.util.ParamsChecker;
+import pms.util.file.FileUtil;
 
 public final class Driver {
 	private String driver_name;
@@ -24,6 +24,7 @@ public final class Driver {
 	
 	public void configure(String path) throws Exception {
 		Properties pros = new Properties();
+		//System.out.println(Driver.class.getClassLoader().getResource(path));
 		try (InputStream in = Files.newInputStream(Paths.get(FileUtil.removeProtocol(Driver.class.getClassLoader().getResource(path))))) {
 			pros.load(in);
 		}

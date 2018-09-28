@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import javax.servlet.ServletInputStream;
@@ -46,9 +47,19 @@ public class RequestUtil {
 		return map;
 	}
 	
+	public static String getGeneraluri(HttpServletRequest req) {
+		String uri=req.getRequestURI();
+		StringBuilder str=new StringBuilder(uri);
+		int pos=0;
+		return str.toString();
+	}
+	
 	public static void write(HttpServletResponse res, String data, String charset) throws IOException {
 		res.setCharacterEncoding(charset);
 		res.getWriter().write(data);
 	}
 
+	public static void main(String[]args) {
+		
+	}
 }

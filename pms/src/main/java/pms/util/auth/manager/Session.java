@@ -1,10 +1,15 @@
 package pms.util.auth.manager;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Session {
+import pms.util.reflect.anno.Skip;
+
+public class Session implements Serializable{
+	@Skip
+	private static final long serialVersionUID = 5626816839326815655L;
 	private String session_id;
 	private long crttime;
 	private int EXPIRE_TIME=60;
@@ -31,7 +36,7 @@ public class Session {
 		EXPIRE_TIME = eXPIRE_TIME;
 	}
 	public Object getAttributes(String name) {
-		return attributes;
+		return attributes.get(name);
 	}
 	public void setAttributes(String name,Object value) {
 		if ("user".equals(name)) {
