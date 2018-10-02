@@ -10,6 +10,8 @@ import pms.util.StrUtil;
 import pms.util.auth.bean.Role;
 import pms.util.comm.lambda.exception.Handler;
 import pms.util.comm.lambda.exception.SimpleExec;
+import pms.util.db.anno.Col;
+import pms.util.db.bean.ColBean;
 import pms.util.reflect.anno.Setter;
 import pms.util.reflect.anno.Skip;
 import pms.util.url.URLParser;
@@ -19,6 +21,7 @@ public class Reflector {
 	private static HashMap<Class<?>, HashMap<String, Field>> cache = new HashMap<>();
 	private static HashMap<Class<?>, HashMap<String, Method>> getters = new HashMap<>();
 	private static HashMap<Class<?>, HashMap<String, Method>> setters = new HashMap<>();
+	private static HashMap<Class<?>, HashMap<String, ColBean>> db_map = new HashMap<>();;
 
 	public static Object get(Object o, String attr) throws Exception {
 		Class<?> clazz = o.getClass();
@@ -79,11 +82,11 @@ public class Reflector {
 					Setter setter = e.getValue().getAnnotation(Setter.class);
 					Class<?>[] clazzs = null;
 					if (setter == null) {
-						clazzs=new Class<?>[]{String.class};
+						clazzs = new Class<?>[] { String.class };
 					} else {
 						clazzs = setter.setter();
 					}
-					Method method = clazz.getDeclaredMethod(method_name,clazzs);
+					Method method = clazz.getDeclaredMethod(method_name, clazzs);
 					method.setAccessible(true);
 					methods.put(e.getKey(), method);
 					return null;
@@ -110,6 +113,34 @@ public class Reflector {
 			return null;
 		}, Handler.PRINTTRACE);
 	}
+	
+	public static HashMap<String, ColBean> db_map(Class<?> clazz){
+		HashMap<String, ColBean> map=db_map.containsKey(clazz)?db_map.get(clazz):new HashMap<>();
+		if (map.size()!=0) {
+			return map;
+		}
+		
+		HashMap<String, Field> fields=getFields(clazz);
+		fields.entrySet().stream().forEach(entry->{
+			String attr=entry.getKey();
+			Field field=entry.getValue();
+			ColBean colBean=new ColBean();
+			Col col=field.getAnnotation(Col.class);
+			if (col==null) {
+				map.put(attr, colBean.setCol(attr).setAlias(attr));
+			}else {
+
+				map.put(attr, colBean.setCol(col.col()).setAlias(col.alias()));
+			}
+		});
+		db_map.put(clazz, map);
+		return map;
+	}
+	
+	public static ColBean get_db_col(String attr,Class<?> clazz) {
+		HashMap<String, ColBean> map=db_map(clazz);
+		return map.get(attr);
+	}
 
 	public static void main(String... args) throws Exception {
 		int id = 0;
@@ -118,12 +149,12 @@ public class Reflector {
 		role.setAvailable("1");
 		role.setDescription("≤‚ ‘");
 		role.setName("≤‚ ‘");
-		HashSet<String> set=new HashSet<String>();
+		HashSet<String> set = new HashSet<String>();
 		set.add("p");
 		set.add("pos");
 		set.add("action");
 		set.add("yo_u");
-		DURL url=URLParser.parse("http://localhost:12001/pms/setting?action=123&p=1231&you=&pos=");
+		DURL url = URLParser.parse("http://localhost:12001/pms/setting?action=123&p=1231&you=&pos=");
 		System.out.println(url.equals("http://localhost:12001/pms/setting", set));
 	}
 }

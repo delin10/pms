@@ -12,7 +12,7 @@ public class Session implements Serializable{
 	private static final long serialVersionUID = 5626816839326815655L;
 	private String session_id;
 	private long crttime;
-	private int EXPIRE_TIME=60;
+	private int EXPIRE_TIME=1600;
 	private Map<String,Object> attributes=new HashMap<>();
 	
 	public Session(String session_id,Object o) {
@@ -35,6 +35,11 @@ public class Session implements Serializable{
 	public void setEXPIRE_TIME(int eXPIRE_TIME) {
 		EXPIRE_TIME = eXPIRE_TIME;
 	}
+	
+	public Object getAttributes() {
+		return attributes;
+	}
+	
 	public Object getAttributes(String name) {
 		return attributes.get(name);
 	}

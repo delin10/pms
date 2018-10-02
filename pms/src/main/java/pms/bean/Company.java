@@ -2,10 +2,17 @@ package pms.bean;
 
 import java.io.InputStream;
 
+import pms.util.reflect.anno.Skip;
+
 public class Company{
 	private String info;
 	private String description;
 	private String legal_person;
+	@Skip(skip=true)
+	private InputStream imgUrl;
+	private String address;
+	private String contact_tel;
+	private String contact_email;
 	public String getInfo() {
 		return info;
 	}
@@ -48,8 +55,4 @@ public class Company{
 	public void setContact_email(String contact_email) {
 		this.contact_email = contact_email;
 	}
-	private InputStream imgUrl;
-	private String address;
-	private String contact_tel;
-	private String contact_email;
 }

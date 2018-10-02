@@ -2,10 +2,16 @@ package pms.bean;
 
 import java.io.InputStream;
 
+import pms.util.reflect.anno.Skip;
+
 public class Contract{
 	private String contract_id;
 	private String crttime;
 	private String deadtime;
+	private int valid;
+	@Skip(skip=true)
+	private InputStream img;
+	private String creator;
 	public String getContract_id() {
 		return contract_id;
 	}
@@ -42,7 +48,4 @@ public class Contract{
 	public void setCreator(String creator) {
 		this.creator = creator;
 	}
-	private int valid;
-	private InputStream img;
-	private String creator;
 }

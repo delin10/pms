@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,15 +17,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+import com.alibaba.fastjson.JSON;
+
+import pms.bean.Building;
+import pms.bean.Community;
+import pms.bean.Company;
+import pms.bean.Contract;
+import pms.bean.Owner;
+import pms.bean.Room;
+import pms.dao.Dao;
 import pms.util.StrUtil;
+import pms.util.auth.Getter;
+import pms.util.auth.bean.Resource;
+import pms.util.auth.bean.User;
+import pms.util.auth.manager.Session;
+import pms.util.comm.Info;
 import pms.util.comm.lambda.exception.Handler;
 import pms.util.comm.lambda.exception.SimpleExec;
 import pms.util.comm.lambda.param.ParamWrapper;
+import pms.util.db.bean.ColBean;
 import pms.util.db.parser.SQLTableParserImpl;
 import pms.util.file.FileUtil;
 import pms.util.reflect.Reflector;
 import pms.util.schedule.Scheduler;
 import pms.util.system.hook.HookUtil;
+import pms.view.UserView;
 
 public class DBUtil {
 	private static Scheduler scheduler;
@@ -149,6 +166,7 @@ public class DBUtil {
 
 		return DBUtil.update(sql);
 	}
+	
 
 	public static boolean keyDel(String table, Keys kv) {
 		String sql = String.format("delete from %s where %s", table, kv);
@@ -333,7 +351,34 @@ public class DBUtil {
 		return cols;
 	}
 
-	public static Object parse(ResultSet rs, Class<?> clazz) {
+	public static Object parse(ResultSet rs,Class<?> clazz){
+		return SimpleExec.exec((data) -> {
+			if (rs == null || !rs.next()) {
+				return null;
+			}
+
+			ArrayList<String> cols = DBUtil.columnsOf(rs);
+			Object inst = clazz.getConstructor().newInstance();
+
+			HashMap<String, Field> fields = Reflector.getFields(clazz);
+			fields.values().stream().forEach(field -> {
+				String name = field.getName();
+				String col=Reflector.get_db_col(name, clazz).getAlias();
+				if (cols.contains(col.toLowerCase())) {
+					SimpleExec.exec((wrapper) -> {
+						//System.out.println(col);
+						Object value=rs.getString(col);
+						Reflector.setter(clazz, name).invoke(inst, value==null?"":value);
+						// System.out.println(name+"="+ rs.getString(name));
+						return null;
+					}, Handler.PRINTTRACE);
+				}
+			});
+			return inst;
+		}, Handler.PRINTTRACE);
+	}
+	
+	public static Object parse_(ResultSet rs, Class<?> clazz) {
 		return SimpleExec.exec((data) -> {
 			if (rs == null || !rs.next()) {
 				return null;
@@ -347,7 +392,8 @@ public class DBUtil {
 				String name = field.getName();
 				if (cols.contains(name.toLowerCase())) {
 					SimpleExec.exec((wrapper) -> {
-						Reflector.setter(clazz, name).invoke(inst, rs.getString(name));
+						Object value=rs.getString(name);
+						Reflector.setter(clazz, name).invoke(inst, value==null?"":value);
 						// System.out.println(name+"="+ rs.getString(name));
 						return null;
 					}, Handler.PRINTTRACE);
@@ -407,6 +453,7 @@ public class DBUtil {
 
 	public static ResultSet keysQuery(String table, Keys keys) {
 		String sql = String.format("select * from %s where %s", table, keys);
+		//System.out.println(sql);
 		return DBUtil.query(sql);
 	}
 
@@ -655,6 +702,12 @@ public class DBUtil {
 
 			return this;
 		}
+		
+		public Transaction add(ArrayList<String> sqls) {
+			this.sqls.addAll(sqls);
+
+			return this;
+		}
 
 		public boolean commit() {
 			ParamWrapper wrapper=ParamWrapper.instance();
@@ -701,6 +754,14 @@ public class DBUtil {
 
 		public static SQL create() {
 			return new SQL();
+		}
+		
+		public SQL select(Class<?> clazz) {
+			HashMap<String, ColBean> map=Reflector.db_map(clazz);
+			sql.append("select ");
+			sql.append(map.values().stream().map(col->String.format("%s as %s", col.getCol(),col.getAlias())).collect(Collectors.joining(",")));
+			sql.append(" ");
+			return this;
 		}
 
 		public SQL select(KV... kvs) {
@@ -766,6 +827,20 @@ public class DBUtil {
 			String from = Arrays.stream(tables).collect(Collectors.joining(","));
 			sql.append("from ");
 			sql.append(from);
+			sql.append(" ");
+			return this;
+		}
+		
+		public SQL left_join(String table) {
+			sql.append("left join ");
+			sql.append(table);
+			sql.append(" ");
+			return this;
+		}
+		
+		public SQL on(Keys keys) {
+			sql.append("on ");
+			sql.append(keys);
 			sql.append(" ");
 			return this;
 		}
@@ -870,7 +945,142 @@ public class DBUtil {
 	
 	public static void main(String... args) throws Exception {
 		DBUtil.init();
-		testTable();
+		//generateResources();
+		//generateUser();
+		Info info= Getter.um.login("0", "123456", null);
+		Object session=info.getData();
+		Session session_=Getter.um.check(session.toString());
+		Getter.am.auth(session_, "showUser");
+		Getter.rolem.auth(session_, "0", "1");
+		System.out.println(session+"::"+JSON.toJSONString(session_));
+		
+		System.out.println(JSON.toJSONString(Dao.resources_tab(session_,"user")));
+		System.out.println(SQL.create().select(UserView.class).from("users")
+						.left_join("users_roles")
+						.on(new Keys().start(new KV("users.id","user_id").unwrap()))
+						.left_join("roles")
+						.on(new Keys().start(new KV("roles.id","role_id").unwrap())));
+		ArrayList<Object> ls=DBUtil.toArrayList(DBUtil.query(
+				(SQL.create().select(UserView.class).from("users")
+						.left_join("users_roles")
+						.on(new Keys().start(new KV("users.id","user_id").unwrap()))
+						.left_join("roles")
+						.on(new Keys().start(new KV("roles.id","role_id").unwrap()))).complete()),UserView.class);
+		
+		Resource resource=new Resource();
+		resource.setId("roles");
+		resource.setName("查看角色");
+		resource.setFid("role");
+		resource.setUrl("/pms/setting?action=roles&resource_id={0}");
+		DBUtil.insertObject(resource, Resource.class, "resources");
+	}
+	
+	public static void generateResources() {
+		//ArrayList<Resource> list=new ArrayList<>();
+		String[] ids = {"setting","user","setRole","showUser","role","auth","addRole","delRole"};
+		String[] names= {"系统设置","用户管理","设置角色","查看用户","角色管理","授权","添加角色","删除角色"};
+		String[] url= {"","","/pms/setting?action=setRole&resource_id={0}&role_id={1}&user_id={2}"," /pms/setting?action=showUser&resource_id={0}&start={1}&size={2}",
+				"","/pms/setting?action=auth&resource_id={0}&role_id={1}","/pms/setting?action=addRole&resource_id={0}","/pms/setting?action=delRole&resource_id={0}&role_id={1}"};
+		String[] fid= {"","setting","user","user","setting","role","role","role"};
+		
+		for (int i=0;i<ids.length;++i) {
+			Resource resource=new Resource();
+			resource.setId(ids[i]);
+			resource.setName(names[i]);
+			resource.setFid(fid[i]);
+			resource.setUrl(url[i]);
+			DBUtil.insertObject(resource, Resource.class, "resources");
+		}
+	}
+	
+	public static void generateUser() {
+		User user=new User();
+		user.setId("1");
+		user.setPwd("123456");
+		user.setRel_id("441424199811283494");
+		Getter.um.add(user);
+	}
+	
+	public static void generate() {
+		Company com=new Company();
+		com.setInfo("长春失业公司");
+		com.setDescription("一所好公司");
+		com.setLegal_person("李德林");
+		com.setAddress("吉林省长春市");
+		com.setContact_email("lidelin10@outlook.com");
+		com.setContact_tel("15219171826");
+		DBUtil.insertObject(com, com.getClass(), "company");
+		
+		Community community=new Community();
+		community.setName("碧桂园");
+		community.setDescription("very_good");
+		community.setFloor_area(11.0);
+		community.setGreen_area(123.00);
+		System.out.println(Instant.now().getEpochSecond());
+		community.setCrttime(""+Instant.now().getEpochSecond());;
+		community.setTotal_area(10);
+		DBUtil.insertObject(community,Community.class,"community");
+		
+		
+		Building building=new Building();
+		building.setBuilding_id("A1");
+		building.setBuilding_type("商业房");
+		building.setCommunity_name("碧桂园");
+		building.setCrttime(""+Instant.now().getEpochSecond());
+		building.setDescription("很高的一幢楼");
+		building.setDirection("南方");
+		building.setFloor_area(110);
+		building.setFloor_num(30);
+		building.setHeight(10);
+		DBUtil.insertObject(building,Building.class,"building");
+		
+		Room room=new Room();
+		room.setBuilding_id("A1");
+		room.setCommunity_name("碧桂园");
+		room.setDecorated(0);
+		room.setFloor_id(2);
+		room.setIs_vacancy(1);
+		room.setRoom_area(100);
+		room.setRoom_id("1001");
+		room.setRoom_layout("三室一厅");
+		//房间类型错误
+		room.setRoom_type(1);
+		room.setRoom_use("居住");
+		DBUtil.insertObject(room, Room.class, "room");
+		
+		Contract contract=new Contract();
+		contract.setContract_id("10000");
+		contract.setCreator("黄俊");
+		contract.setDeadtime(""+(Instant.now().getEpochSecond()+10000000));
+		contract.setValid(1);
+		DBUtil.insertObject(contract, Contract.class, "contract");
+		
+		Owner owner=new Owner();
+		owner.setAge(10);
+		owner.setBuilding_id("A1");
+		owner.setCheck_in_time(Instant.now().getEpochSecond());
+		owner.setCommunity_name("碧桂园");
+		owner.setContract_address("吉林省长春市");
+		owner.setContract_id("10000");
+		owner.setFloor_id(2);
+		owner.setHukou("广东梅州");
+		owner.setName("李德林");
+		owner.setOwner_id("441424199811283494");
+		owner.setPay_way("支付宝");
+		owner.setPostalcode("551623");
+		owner.setRemark("无");
+		owner.setRoom_id("1001");
+		owner.setSex("男");
+		owner.setTel("15219171826");
+		owner.setWork_place("吉林大学");
+		owner.setContract_id("10000");
+		DBUtil.insertObject(owner, Owner.class, "owner");
+		
+		User user=new User();
+		user.setId("0");
+		user.setPwd("123");
+		user.setRel_id(owner.getOwner_id());
+		Getter.um.add(user);
 	}
 	
 	public static void testTable() throws IOException {

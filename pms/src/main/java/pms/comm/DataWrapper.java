@@ -37,7 +37,7 @@ public class DataWrapper {
 	public void wrapInfo(Info info) {
 		this.msg=info.getInfo();
 		this.ret=this.suc=info.getStatus();
-		this.data=info;
+		this.data=info.getData();
 	}
 	
 	public void suc(String info) {

@@ -1,5 +1,6 @@
 package pms.util.auth.manager;
 
+import pms.util.auth.Getter;
 import pms.util.auth.bean.Role;
 import pms.util.comm.Info;
 import pms.util.db.DBUtil;
@@ -13,26 +14,31 @@ public class RoleManager {
 	public final String SYS="0";
 	public final String NORMAL="1";
 	private static Cache cache=new Cache();
-	{
-		init();
+	public Info roles() {
+		Info info=new Info();
+		info.setData(cache.get("roles").all());
+		info.suc("success");
+		return info;
 	}
 	public Info auth(Session session, String user_id, String role_id) {
 		Info info = new Info();
 		// 需要判断管理员权限
-		Role role = (Role) session.getAttributes("role");
-		if ("0".equals(role.getId())) {
+		//System.out.println(session.getAttributes("role"));
+		Role role = (Role) cache.get("roles").get(session.getAttributes("role").toString());
+		if ("0".equals(role.getId()) && !"0".equals(user_id) && !"0".equals(role_id)) {
 			boolean res=DBUtil.transaction()
 			.begin()
 			.add(SQL.create().delete("users_roles").where(new Keys().start(new KV("user_id",user_id))))
 			.add(SQL.create().insert("users_roles").values(new KV("user_id",user_id),new KV("role_id",role_id)))
 			.commit();
 			if (res) {
+				Getter.sm.getSessionOf(user_id).setAttributes("role", role_id);
 				info.suc("成功更换角色");
 			}else {
 				info.fail("更换角色失败[可能原因:数据库事务发生回滚]");
 			}
 		}else {
-			info.fail("权限不足");
+			info.fail("权限不足或者尝试授予系统管理员权限");
 		}
 		return info;
 	}

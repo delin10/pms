@@ -12,7 +12,6 @@ import com.alibaba.fastjson.JSON;
 
 import pms.comm.DataWrapper;
 import pms.dao.Dao;
-import pms.util.RequestUtil;
 import pms.util.auth.Getter;
 import pms.util.auth.bean.Role;
 import pms.util.auth.manager.Session;
@@ -30,18 +29,23 @@ public class SystemServlet extends HttpServlet {
 		String role_id=request.getParameter("role_id");
 		String user_id=request.getParameter("user_id");
 		Session session=(Session)request.getAttribute("session");
+		//System.out.println(request.getAttribute("my")+""+session);
 		
 		if ("setRole".equalsIgnoreCase(action)) {
-			Getter.rolem.auth(session, user_id, role_id);
+			Info info=Dao.setRole(session, user_id, role_id);
+			data.wrapInfo(info);
 		}else if ("showUser".equalsIgnoreCase(action)) {
-			data.setData(Getter.um.users());
+			data.wrapInfo(Dao.showUsers());
 			data.suc("≥…π¶≤È—Ø");
 		}else if ("auth".equals(action)) {
 			@SuppressWarnings("unchecked")
 			ArrayList<String> list=JSON.parseObject(json, ArrayList.class);
-			Info info=Dao.auth(role_id, list);
+			Info info=Dao.auth(session, list);
 			data.wrapInfo(info);
 			data.setData(info.getData());
+		}else if ("roles".equals(action)) {
+			Info info=Dao.roles();
+			data.wrapInfo(info);
 		}else if ("addRole".equalsIgnoreCase(action)) {
 			Role role=JSON.parseObject(json,Role.class);
 			data.wrapInfo(Getter.rolem.addRole(role));

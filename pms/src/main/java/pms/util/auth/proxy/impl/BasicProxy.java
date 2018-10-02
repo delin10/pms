@@ -17,6 +17,7 @@ public class BasicProxy implements Proxy {
 	@Override
 	public Object verify(String id,String pwd,Map<String,Object> attrs) {
 		return SimpleExec.exec(data->{
+			//System.out.println(new Keys().start(new KV("id",id)).and(new KV("pwd",Encrypter.Md5(pwd))));
 			ResultSet rs=DBUtil.keysQuery("users", new Keys().start(new KV("id",id)).and(new KV("pwd",Encrypter.Md5(pwd))));
 			return DBUtil.parse(rs, User.class);
 		}, Handler.PRINTTRACE);

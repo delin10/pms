@@ -2,11 +2,13 @@ package pms.util.redis.cahce;
 
 import java.io.IOException;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 import pms.util.auth.Getter;
 import pms.util.comm.lambda.exception.Handler;
@@ -23,12 +25,12 @@ import pms.util.schedule.Scheduler;
 import pms.util.system.hook.HookUtil;
 
 public class Cache {
-	private static RedisDriver driver = new RedisDriver();
+	private RedisDriver driver = new RedisDriver();
 	private static Scheduler scheduler = new Scheduler().init(10, true);
 	private static HashMap<String, CacheSwap> swaps = new HashMap<>();
 	private static ReentrantLock lock = new ReentrantLock(true);
 	private static final String TEMP_KEY = "cache_rw";
-	static {
+	{
 		DriverConfig conf = new DriverConfig();
 		try {
 			conf.load("pms/conf/redis.props");
@@ -37,7 +39,7 @@ public class Cache {
 			e.printStackTrace();
 		}
 		// driver = new RedisDriver();
-		RedisDriver.getInstance(conf);
+		driver.getInstance(conf);
 		HookUtil.addHook(() -> {
 			System.out.println("exit...");
 			scheduler.shutdownNow();
@@ -72,7 +74,7 @@ public class Cache {
 		return this;
 	}
 
-	public static class CacheSwap {
+	public class CacheSwap {
 		private int MAX_SIZE = 20;
 		private int REFRESH_TIME = 10;
 		private String table;
@@ -82,7 +84,8 @@ public class Cache {
 		private Controllable thread;
 		private String redis_key;
 		private boolean MAX_ID;
-		private String MAX_ID_KEY="MAX_ID";
+		private String MAX_ID_KEY = "MAX_ID";
+		private String cache_sql = null;
 
 		/**
 		 * @param table
@@ -99,34 +102,48 @@ public class Cache {
 		}
 
 		public void cacheAll() {
-			ResultSet rs = DBUtil.queryAll(table, null);
+			// System.out.println(cache_sql);
+			ResultSet rs = cache_sql == null ? DBUtil.queryAll(table, null) : DBUtil.query(cache_sql);
 			Object o = DBUtil.parse(rs, row);
 			try {
 				while (o != null) {
 					String key = "" + Reflector.get(o, id);
-					// System.out.println(key);
+					// System.out.println("key:"+key);
 					driver.set(table, key, o);
 					o = DBUtil.parse(rs, row);
 				}
 				if (MAX_ID) {
-					SimpleExec.exec(data->{
+					SimpleExec.exec(data -> {
 						driver.set_default(table, MAX_ID_KEY, DBUtil.max(table, id, "0"));
 						return null;
 					}, Handler.PRINTTRACE);
-					
+
 				}
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		
+
+		public ArrayList<Object> all() {
+			return driver.keys(table + "*").stream().filter(key -> !key.contains(MAX_ID_KEY)).map(driver::get)
+					.collect(Collectors.toCollection(ArrayList<Object>::new));
+		}
+
+		public String getCache_sql() {
+			return cache_sql;
+		}
+
+		public void setCache_sql(String cache_sql) {
+			this.cache_sql = cache_sql;
+		}
+
 		public String getMaxId() {
 			return (String) driver.get(table, MAX_ID_KEY);
 		}
-		
+
 		public String incMaxId() {
-			return driver.inc(table,MAX_ID_KEY);
+			return driver.inc(table, MAX_ID_KEY);
 		}
 
 		public boolean updateCache(Object o) {
@@ -183,12 +200,11 @@ public class Cache {
 		}
 
 		public Object get(String id) {
-			return driver.get(id);
+			return driver.get(table, id);
 		}
 
 		public void sync() {
-			try {
-				lock.lock();
+			synchronized (driver) {
 				Transaction trans = DBUtil.transaction();
 				trans.begin();
 				update_id.forEach(id -> {
@@ -212,10 +228,7 @@ public class Cache {
 				});
 				trans.commit();
 				update_id.clear();
-			} finally {
-				lock.unlock();
 			}
-
 		}
 
 		public void destroy() {
