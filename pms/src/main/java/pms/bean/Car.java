@@ -6,6 +6,10 @@ public class Car{
 	private String room_id;
 	private String owner_id;
 	private String label;
+	
+	
+	
+
 	public String getBuilding_id() {
 		return building_id;
 	}

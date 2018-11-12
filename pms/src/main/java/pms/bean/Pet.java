@@ -4,6 +4,8 @@ public class Pet{
 	private String building_id;
 	private String community_name;
 	private String room_id;
+	
+
 	public String getBuilding_id() {
 		return building_id;
 	}
@@ -37,8 +39,8 @@ public class Pet{
 	public double getTall() {
 		return tall;
 	}
-	public void setTall(double tall) {
-		this.tall = tall;
+	public void setTall(String tall) {
+		this.tall = Double.parseDouble(tall);
 	}
 	public String getPet_id() {
 		return pet_id;

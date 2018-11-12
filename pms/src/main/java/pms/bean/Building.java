@@ -9,6 +9,7 @@ public class Building{
 	private String direction;
 	private double height;
 	private String crttime;
+	
 	public String getBuilding_id() {
 		return building_id;
 	}
@@ -30,14 +31,14 @@ public class Building{
 	public double getFloor_area() {
 		return floor_area;
 	}
-	public void setFloor_area(double floor_area) {
-		this.floor_area = floor_area;
+	public void setFloor_area(String floor_area) {
+		this.floor_area = Double.parseDouble(floor_area);
 	}
 	public int getFloor_num() {
 		return floor_num;
 	}
-	public void setFloor_num(int floor_num) {
-		this.floor_num = floor_num;
+	public void setFloor_num(String floor_num) {
+		this.floor_num = Integer.parseInt(floor_num);
 	}
 	public String getDirection() {
 		return direction;
@@ -48,8 +49,8 @@ public class Building{
 	public double getHeight() {
 		return height;
 	}
-	public void setHeight(double height) {
-		this.height = height;
+	public void setHeight(String height) {
+		this.height = Double.parseDouble(height);
 	}
 	public String getCrttime() {
 		return crttime;

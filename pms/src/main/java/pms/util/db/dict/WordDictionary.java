@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import pms.util.PatternUtil;
+import pms.util.regex.PatternUtil;
 
 public class WordDictionary {
 	private Map<String,String> type_dict=new HashMap<>(1024);

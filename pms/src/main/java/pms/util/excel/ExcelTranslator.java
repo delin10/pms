@@ -24,7 +24,6 @@ import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import pms.util.PatternUtil;
 import pms.util.comm.lambda.exception.Handler;
 import pms.util.comm.lambda.exception.SimpleExec;
 import pms.util.comm.lambda.param.ParamWrapper;
@@ -32,6 +31,7 @@ import pms.util.excel.anno.Excel;
 import pms.util.excel.anno.ExcelColumn;
 import pms.util.file.FileUtil;
 import pms.util.reflect.Reflector;
+import pms.util.regex.PatternUtil;
 
 public class ExcelTranslator {
 	private final static String Excel_2003 = "xls"; // 2003 °æ±¾µÄexcel

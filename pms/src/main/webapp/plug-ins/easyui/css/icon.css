@@ -68,6 +68,13 @@
 	background:url('icons/more.png') no-repeat center center;
 }
 
+.icon-auth{
+	background:url('icons/auth.png') no-repeat center center;
+}
+
+.icon-change{
+	background:url('icons/change.png') no-repeat center center;
+}
 
 .icon-mini-add{
 	background:url('icons/mini_add.png') no-repeat center center;

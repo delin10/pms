@@ -26,8 +26,8 @@ public class RSA {
 	 * @param url 项目下的文件
 	 * @param type 区分私钥和公钥
 	 */
-	public  void loadKey(String url,KeyType type) {
-		String abUrl=FileUtil.removeProtocol(RSA.class.getClassLoader().getResource(url));
+	public  void loadKey(String url,KeyType type,boolean is_ab) {
+		String abUrl=is_ab?url:FileUtil.removeProtocol(RSA.class.getClassLoader().getResource(url));
 		try(BufferedReader reader=Files.newBufferedReader(Paths.get(abUrl))){
 			StringBuilder text=new StringBuilder();
 			String line=null;
@@ -215,17 +215,4 @@ public class RSA {
     public boolean isReady() {
     	return !publicKey.isEmpty()&&!privateKey.isEmpty();
     }
-
-	public static void main(String[] args) throws Exception {
-		RSA rsa=new RSA();
-		rsa.loadKey("jieyou/resource/privatekey.pem", KeyType.PRIVATE_KEY);
-		rsa.loadKey("jieyou/resource/publickey.pem", KeyType.PUBLIC_KEY);
-		String sign=rsa.sign("123");
-		System.out.println(sign);
-		System.out.println(rsa.verify("123", sign));
-		//String str_encrypt=rsa.encrypt("【【】12!@@1");
-		System.out.println(rsa.encrypt("1536310650000_123"));
-		System.out.println(rsa.decrypt(rsa.bcd2Str(Base64.decodeBase64("SDOcp3d6/pP3rAIJrfNGZ8C5APFCYlpr4y6TESsb83Dx4g2VQeCiHoBdrY2wBnV7B2cjkkokT7ze5SsBLt18pByDWowMnlrI6+X0jXYreeNvQTzqwO06K8lNZtZQQQm0ELCVp+uN+ogth7Utp09XkvZB/IcNSTorWygHg8bb4K3T01tBWNPNyhSPk1EMu+lGw5iwZx/Rnf43/rp0/529IibWojvTQdUTOqygirBstGS4sSoZ5T1Y0vFUbRfjbGIarPW61UZ7dMs1FMwyAJA3wkjteTq5BXj5duZ8rQSUjysA+AajvR1Hea+mxbhnnXjhoBwq6+tj1xjfg/Ewtjhc7Q=="))));
-		
-	}
 }

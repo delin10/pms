@@ -9,6 +9,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -38,7 +39,7 @@ public class CrosFilter implements Filter {
 			throws IOException, ServletException {
 		// TODO Auto-generated method stub
 		HttpServletResponse res = (HttpServletResponse) response;
-		res.setContentType("text/html;charset=UTF-8");
+		res.setContentType("application/json;charset=utf-8");
 		res.setHeader("Access-Control-Allow-Origin", "*");
 		res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
 		res.setHeader("Access-Control-Max-Age", "0");

@@ -1,2 +1,4 @@
 eclipse.preferences.version=1
+encoding//src/main/java/pms/util/comm/lambda/DStream.java=UTF-8
+encoding//src/main/java/pms/util/db/DBUtil.java=UTF-8
 encoding//src/main/java/pms/util/redis/driver/RedisDriver.java=UTF-8

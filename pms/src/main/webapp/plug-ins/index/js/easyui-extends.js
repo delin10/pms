@@ -1,3 +1,9 @@
+jQuery.extend({
+	nameget : function(input) {
+		return input[0].attributes['textboxname'].value;
+	}
+});
+
 (function(JQuery) {
 	JQuery.window = function(selector, title, width, height) {
 		if (!width)
@@ -14,7 +20,7 @@
 			resizable : false,
 			modal : true,
 			onClose : function() {
-				$(selector + " form input").val(null);
+				//$(selector + " form input").val(null);
 			}
 		});
 	};

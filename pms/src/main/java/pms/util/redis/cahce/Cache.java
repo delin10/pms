@@ -1,7 +1,6 @@
 package pms.util.redis.cahce;
 
 import java.io.IOException;
-import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,6 +15,7 @@ import pms.util.comm.lambda.exception.SimpleExec;
 import pms.util.db.DBUtil;
 import pms.util.db.DBUtil.KV;
 import pms.util.db.DBUtil.Keys;
+import pms.util.db.DBUtil.ResultSetWrapper;
 import pms.util.db.DBUtil.Transaction;
 import pms.util.redis.driver.RedisDriver;
 import pms.util.redis.driver.RedisDriver.DriverConfig;
@@ -41,7 +41,7 @@ public class Cache {
 		// driver = new RedisDriver();
 		driver.getInstance(conf);
 		HookUtil.addHook(() -> {
-			System.out.println("exit...");
+			//System.out.println("exit...");
 			scheduler.shutdownNow();
 			swaps.values().forEach(swap -> swap.destroy());
 		});
@@ -103,18 +103,18 @@ public class Cache {
 
 		public void cacheAll() {
 			// System.out.println(cache_sql);
-			ResultSet rs = cache_sql == null ? DBUtil.queryAll(table, null) : DBUtil.query(cache_sql);
-			Object o = DBUtil.parse(rs, row);
+			ResultSetWrapper rs = cache_sql == null ? DBUtil.queryAll(table, null) : DBUtil.query(cache_sql);
+			Object o = DBUtil.parse_muti(rs, row,false);
 			try {
 				while (o != null) {
 					String key = "" + Reflector.get(o, id);
 					// System.out.println("key:"+key);
 					driver.set(table, key, o);
-					o = DBUtil.parse(rs, row);
+					o = DBUtil.parse_muti(rs, row,false);
 				}
 				if (MAX_ID) {
 					SimpleExec.exec(data -> {
-						driver.set_default(table, MAX_ID_KEY, DBUtil.max(table, id, "0"));
+						driver.set_default(MAX_ID_KEY, table, DBUtil.max(table, id, "0"));
 						return null;
 					}, Handler.PRINTTRACE);
 
@@ -143,7 +143,7 @@ public class Cache {
 		}
 
 		public String incMaxId() {
-			return driver.inc(table, MAX_ID_KEY);
+			return driver.inc(MAX_ID_KEY,table);
 		}
 
 		public boolean updateCache(Object o) {
@@ -176,13 +176,9 @@ public class Cache {
 			try {
 				lock.lock();
 				String key_str = driver.combine(table, id);
-				if ("insert".equals(driver.get(TEMP_KEY, key_str))) {
-					driver.remove(TEMP_KEY, key_str);
-					driver.remove(key_str);
-					return true;
-				}
+				driver.remove(key_str);
 				update_id.add(id);
-				return record(id, "delete");
+				return record(key_str, "delete");
 			} finally {
 				lock.unlock();
 			}
@@ -223,11 +219,13 @@ public class Cache {
 								.complete();
 						trans.add(sql);
 					}
+					//System.out.println(op+id);
 
 					driver.remove(TEMP_KEY, key);
 				});
 				trans.commit();
 				update_id.clear();
+				cacheAll();
 			}
 		}
 

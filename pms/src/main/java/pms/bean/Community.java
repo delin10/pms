@@ -6,6 +6,7 @@ public class Community{
 	private double floor_area;
 	private double total_area;
 	private double green_area;
+	
 	public String getName() {
 		return name;
 	}
@@ -21,20 +22,20 @@ public class Community{
 	public double getFloor_area() {
 		return floor_area;
 	}
-	public void setFloor_area(double floor_area) {
-		this.floor_area = floor_area;
+	public void setFloor_area(String floor_area) {
+		this.floor_area = Double.parseDouble(floor_area);
 	}
 	public double getTotal_area() {
 		return total_area;
 	}
-	public void setTotal_area(double total_area) {
-		this.total_area = total_area;
+	public void setTotal_area(String total_area) {
+		this.total_area = Double.parseDouble(total_area);
 	}
 	public double getGreen_area() {
 		return green_area;
 	}
-	public void setGreen_area(double green_area) {
-		this.green_area = green_area;
+	public void setGreen_area(String green_area) {
+		this.green_area = Double.parseDouble(green_area);
 	}
 	public String getCrttime() {
 		return crttime;

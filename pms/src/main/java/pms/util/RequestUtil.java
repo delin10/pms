@@ -2,11 +2,11 @@ package pms.util;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 import javax.servlet.ServletInputStream;
@@ -32,7 +32,18 @@ public class RequestUtil {
 		} catch (UnsupportedEncodingException e) {
 			return null;
 		}
-
+	}
+	
+	public static byte[] getBytes(HttpServletRequest request,int length) {
+		try {
+			InputStream inputStream=request.getInputStream();
+			byte[] bytes=FileUtil.getBytesFixedLength(inputStream, length, 5);
+			return bytes;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			return null;
+		}
+		
 	}
 	
 	public static Map<String,String> getParams(String str){
@@ -50,7 +61,6 @@ public class RequestUtil {
 	public static String getGeneraluri(HttpServletRequest req) {
 		String uri=req.getRequestURI();
 		StringBuilder str=new StringBuilder(uri);
-		int pos=0;
 		return str.toString();
 	}
 	

@@ -1,8 +1,15 @@
 package pms.bean;
 
 public class Owner_family{
+	private String name;
 	private String building_id;
 	private String community_name;
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
 	public String getBuilding_id() {
 		return building_id;
 	}
@@ -30,8 +37,8 @@ public class Owner_family{
 	public int getFloor_id() {
 		return floor_id;
 	}
-	public void setFloor_id(int floor_id) {
-		this.floor_id = floor_id;
+	public void setFloor_id(String floor_id) {
+		this.floor_id = Integer.parseInt(floor_id);
 	}
 	public String getMember_id() {
 		return member_id;

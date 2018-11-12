@@ -1,4 +1,5 @@
 package pms.util.comm;
+
 /**
  * 作为传递消息得工具
  * @author delin
@@ -37,5 +38,21 @@ public class Info {
 	public void suc(String info) {
 		this.info=info;
 		this.status=0;
+	}
+	
+	public void wrapInfo(Info info) {
+		this.status=info.getStatus();
+		this.info=info.getInfo();
+		this.data=info.getData();
+	}
+	
+	public Info line() {
+		this.info+="</br>";
+		return this;
+	}
+	
+	public Info append(String info) {
+		this.info+=info;
+		return this;
 	}
 }

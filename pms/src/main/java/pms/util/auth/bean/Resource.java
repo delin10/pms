@@ -43,6 +43,12 @@ public class Resource implements Serializable {
 	public void setUrl(String url) {
 		this.url = url;
 	}
+	
+	@Override
+	public int hashCode() {
+		// TODO Auto-generated method stub
+		return id.hashCode();
+	}
 
 	@Override
 	public boolean equals(Object o) {

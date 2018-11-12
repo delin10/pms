@@ -1,10 +1,9 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
-<%@ include file="/WEB-INF/pages/common.jspf"%>
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
 <!DOCTYPE html>
 <html lang="zh-cn">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title></title>
 <link rel="stylesheet" href="plug-ins/easyui/css/default/easyui.css" />
 <link rel="stylesheet" href="plug-ins/easyui/css/icon.css" />
@@ -69,14 +68,12 @@
 					}
 					return isvalid;
 				},
-				contentType : "application/json; charset=UTF-8",
+				contentType : "application/json; charset=utf-8",
 				data : JSON.stringify(form),
 				success : function(data) {
 					//$.messager.progress("close");
 					console.log(data);
-					var json = eval("(" + data + ")");
-					console.log(json.suc);
-					if (json.suc == 0) {
+					if (data.suc == 0) {
 						window.location.href = "index.jsp";
 					} else {
 						$.messager.show({

@@ -13,7 +13,7 @@ import javax.servlet.http.HttpServletRequest;
 import com.alibaba.fastjson.JSON;
 
 import pms.comm.DataWrapper;
-import pms.util.auth.Getter;
+import pms.comm.RuntimeStorage;
 import pms.util.auth.manager.Session;
 import pms.util.comm.Info;
 
@@ -42,7 +42,7 @@ public class CheckResource implements Filter {
 		//System.out.println(session);
 		request.setAttribute("session", session);
 		String resource_id = request.getParameter("resource_id");
-		Info info = Getter.um.getPermission(session, resource_id);
+		Info info =RuntimeStorage.getGetter().getUserManager().getPermission(session, resource_id);
 		if (info.getStatus() == 0) {
 			chain.doFilter(request, response);
 		} else {

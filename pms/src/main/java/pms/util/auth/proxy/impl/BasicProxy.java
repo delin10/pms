@@ -1,6 +1,5 @@
 package pms.util.auth.proxy.impl;
 
-import java.sql.ResultSet;
 import java.util.Map;
 
 import pms.util.Encrypter;
@@ -11,6 +10,7 @@ import pms.util.comm.lambda.exception.SimpleExec;
 import pms.util.db.DBUtil;
 import pms.util.db.DBUtil.KV;
 import pms.util.db.DBUtil.Keys;
+import pms.util.db.DBUtil.ResultSetWrapper;
 
 public class BasicProxy implements Proxy {
 
@@ -18,7 +18,7 @@ public class BasicProxy implements Proxy {
 	public Object verify(String id,String pwd,Map<String,Object> attrs) {
 		return SimpleExec.exec(data->{
 			//System.out.println(new Keys().start(new KV("id",id)).and(new KV("pwd",Encrypter.Md5(pwd))));
-			ResultSet rs=DBUtil.keysQuery("users", new Keys().start(new KV("id",id)).and(new KV("pwd",Encrypter.Md5(pwd))));
+			ResultSetWrapper rs=DBUtil.keysQuery("users", new Keys().start(new KV("id",id)).and(new KV("pwd",Encrypter.Md5(pwd))));
 			return DBUtil.parse(rs, User.class);
 		}, Handler.PRINTTRACE);
 	}

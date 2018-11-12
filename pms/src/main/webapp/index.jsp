@@ -1,11 +1,11 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
 <%@ include file="WEB-INF/pages/setting/user.jsp"%>
 
 <!DOCTYPE html>
 <html lang="zh-cn">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <link rel="stylesheet" href="plug-ins/easyui/css/default/easyui.css" />
 <link rel="stylesheet" href="plug-ins/easyui/css/icon.css" />
 <link rel="stylesheet" href="plug-ins/index/css/style.css" />
@@ -51,7 +51,7 @@
 						id : row.id,
 						text : row.name,
 						url : row.url,
-						fid: row.fid
+						fid : row.fid
 					};
 					children.push(node);
 					rows.splice(i, 1);
@@ -93,7 +93,7 @@
 					id : row.id,
 					text : row.name,
 					url : row.url,
-					fid: row.fid
+					fid : row.fid
 				};
 				roots.push(node);
 				//console.log(node);
@@ -108,77 +108,37 @@
 		$(function() {
 			$('ul.tabs').html('');
 			$('#menu').tree(
-					{ 
+					{
 						url : 'init?comp=tree_menu',
 						lines : true,
 						cascadeCheck : false,
 						loadFilter : function(data) {
-							$('#cz').datagrid({
-								checkOnSelect : true,
-								rownumbers : true,
-								pagination : true,
-								striped : true,
-								data : data,
-								columns : [ [ {
-									field : 'xxx',
-									title : '选择',
-									align : 'center',
-									width : 20,
-									checkbox : 'true'
-								}, {
-									field : 'name',
-									title : '菜单名称',
-									align : 'center',
-									width : 200
-								}, {
-									field : 'url',
-									title : 'URL',
-									align : 'center',
-									width : 200
-								}, {
-									field : '_operate',
-									title : '操作',
-									align : 'center',
-									width : 100,
-									formatter : 'compile'
-								}, ] ]
-							});
-							console.log(data.data.resources);
-							console.log(data.resources);
 							return convert(data.data);
 						},
 						onClick : function(node) {
-							if (!node.id){
-								return;
-							}
-							addPanel(node.text,node.id+".action"+"?menu="+node.fid)
-							if (node) {
-								var s = node.text;
-								if (node.attributes) {
-									s += "," + node.attributes.p1 + ","
-											+ node.attributes.p2;
-								}
-								console.log(s);
-							}
+							addPanel(node.text, node.id + ".action" + "?menu="
+									+ node.fid)
 						}
 					});
 
 			function addPanel(name, url) {
-
 				var dd = $('#tabs').tabs('exists', name);
 				if (dd) {
 					$('#tabs').tabs('select', name);
+					return;
 				} else {
+					var content;
 					var content = '<iframe scrolling="auto" frameborder="0"  src="'
-							+ url
-							+ '" style="width:100%;height:100%;"></iframe>';
-					$('#tabs').tabs('add', {
-						id : name,
-						title : name,
-						content : content,
-						closable : true
-					});
+					+ url
+					+ '" style="width:100%;height:100%;"></iframe>';
 				}
+
+				$('#tabs').tabs('add', {
+					id : name,
+					title : name,
+					content : content,
+					closable : true
+				});
 			}
 
 			function removeWindow() {

@@ -11,6 +11,7 @@ import pms.util.auth.bean.Role;
 import pms.util.comm.lambda.exception.Handler;
 import pms.util.comm.lambda.exception.SimpleExec;
 import pms.util.db.anno.Col;
+import pms.util.db.anno.SQLQuery;
 import pms.util.db.bean.ColBean;
 import pms.util.reflect.anno.Setter;
 import pms.util.reflect.anno.Skip;
@@ -21,7 +22,8 @@ public class Reflector {
 	private static HashMap<Class<?>, HashMap<String, Field>> cache = new HashMap<>();
 	private static HashMap<Class<?>, HashMap<String, Method>> getters = new HashMap<>();
 	private static HashMap<Class<?>, HashMap<String, Method>> setters = new HashMap<>();
-	private static HashMap<Class<?>, HashMap<String, ColBean>> db_map = new HashMap<>();;
+	private static HashMap<Class<?>, HashMap<String, ColBean>> db_map = new HashMap<>();
+	private static HashMap<Class<?>, String> db_sqls=new HashMap<>();
 
 	public static Object get(Object o, String attr) throws Exception {
 		Class<?> clazz = o.getClass();
@@ -109,7 +111,7 @@ public class Reflector {
 	public static void set(String attr, Object value, Object o) {
 		HashMap<String, Field> fields = getFields(o.getClass());
 		SimpleExec.exec((data) -> {
-			fields.get(attr).set(attr, value);
+			fields.get(attr).set(o, value);
 			return null;
 		}, Handler.PRINTTRACE);
 	}
@@ -127,14 +129,26 @@ public class Reflector {
 			ColBean colBean=new ColBean();
 			Col col=field.getAnnotation(Col.class);
 			if (col==null) {
-				map.put(attr, colBean.setCol(attr).setAlias(attr));
+				map.put(attr, colBean.setCol(attr).setAlias(attr).setBlob(false));
 			}else {
 
-				map.put(attr, colBean.setCol(col.col()).setAlias(col.alias()));
+				map.put(attr, colBean.setCol(col.col()).setAlias(col.alias()).setBlob(col.blob()));
 			}
 		});
 		db_map.put(clazz, map);
 		return map;
+	}
+	
+	public static String getSQL(Class<?> view) {
+		String sql=db_sqls.get(view);
+		if (sql!=null) {
+			return sql;
+		}
+		SQLQuery sqlQuery=view.getAnnotation(SQLQuery.class);
+		if (sqlQuery!=null) {
+			return sqlQuery.sql();
+		}
+		return null;
 	}
 	
 	public static ColBean get_db_col(String attr,Class<?> clazz) {

@@ -28,7 +28,7 @@ public class EncodeFilter implements Filter {
 		// place your code here
 
 		// pass the request along the filter chain
-		response.setCharacterEncoding("GBK");
+		response.setCharacterEncoding("utf-8");
 		chain.doFilter(request, response);
 	}
 

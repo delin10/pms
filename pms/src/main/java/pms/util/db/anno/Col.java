@@ -10,4 +10,5 @@ import java.lang.annotation.Target;
 public @interface Col {
 	public String col();
 	public String alias();
+	public boolean blob()default false;
 }

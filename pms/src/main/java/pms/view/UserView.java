@@ -1,15 +1,16 @@
 package pms.view;
 
 import pms.util.db.anno.Col;
-
+import pms.util.db.anno.SQLQuery;
+@SQLQuery(sql="select roles.name as rolename,roles.id as roleid,users.id as userid,roles.description as roledescription from users left join users_roles on users.id=user_id left join roles on roles.id=role_id ")
 public class UserView {
 	@Col(col="users.id",alias="userid")
 	private String userid;
 	@Col(col="roles.id",alias="roleid")
 	private String roleid;
-	@Col(col="roles.name",alias="rolename")
+	@Col(col="roles.name",alias="role_name")
 	private String role_name;
-	@Col(col="roles.description",alias="roledescription")
+	@Col(col="roles.description",alias="role_description")
 	private String role_description;
 	public String getUserid() {
 		return userid;

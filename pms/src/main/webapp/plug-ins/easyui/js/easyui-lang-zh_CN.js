@@ -10,8 +10,8 @@ if ($.fn.treegrid && $.fn.datagrid){
 	$.fn.treegrid.defaults.loadMsg = $.fn.datagrid.defaults.loadMsg;
 }
 if ($.messager){
-	$.messager.defaults.ok = '确定';
-	$.messager.defaults.cancel = '取消';
+	$.messager.defaults.ok = 'ok';
+	$.messager.defaults.cancel = 'cancel';
 }
 $.map(['validatebox','textbox','passwordbox','filebox','searchbox',
 		'combo','combobox','combogrid','combotree',

@@ -41,7 +41,6 @@ public final class Driver {
 		}else {
 			throw new Exception("params are lack");
 		}
-		
 		Class.forName(driver);
 		Connection conn=getConnection();
 		DatabaseMetaData meta=conn.getMetaData();

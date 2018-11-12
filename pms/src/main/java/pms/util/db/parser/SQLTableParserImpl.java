@@ -3,9 +3,9 @@ package pms.util.db.parser;
 import java.util.Arrays;
 import java.util.Map;
 
-import pms.util.PatternUtil;
 import pms.util.StrUtil;
 import pms.util.db.mapper.AttributeMapper;
+import pms.util.regex.PatternUtil;
 
 public class SQLTableParserImpl implements Parser {
 	private String table;

@@ -28,6 +28,12 @@
 		<description></description>
 		<filter-class>pms.filter.LoginFilter</filter-class>
 	</filter>
+	<filter>
+		<filter-name>ParseJSONFilter</filter-name>
+		<display-name>ParseJSONFilter</display-name>
+		<description></description>
+		<filter-class>pms.filter.ParseJSONFilter</filter-class>
+	</filter>
 
 	<filter-mapping>
 		<filter-name>EncodeFilter</filter-name>
@@ -46,9 +52,63 @@
 		<url-pattern>/init</url-pattern>
 	</filter-mapping>
 	<filter-mapping>
-		<filter-name>CheckResource</filter-name>
-		<url-pattern>/setting</url-pattern>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/building</url-pattern>
 	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/company</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/community</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/comm</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/owner</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/room</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/employee</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/db</url-pattern>
+	</filter-mapping>
+
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/department</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/contract</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/role</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/chargeItem</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/chargeForm</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>LoginFilter</filter-name>
+		<url-pattern>/file</url-pattern>
+	</filter-mapping>
+
 	<servlet>
 		<servlet-name>SystemServlet</servlet-name>
 		<display-name>SystemServlet</display-name>
@@ -79,6 +139,134 @@
 		<description></description>
 		<servlet-class>pms.servlet.DispatcherServlet</servlet-class>
 	</servlet>
+	<servlet>
+		<servlet-name>LogoutServlet</servlet-name>
+		<display-name>LogoutServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.LogoutServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>DispatcherServlet</servlet-name>
+		<display-name>DispatcherServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.DispatcherServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>CompanyServlet</servlet-name>
+		<display-name>CompanyServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.CompanyServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>BuildingServlet</servlet-name>
+		<display-name>BuildingServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.BuildingServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>RoomServlet</servlet-name>
+		<display-name>RoomServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.RoomServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>OwnerServlet</servlet-name>
+		<display-name>OwnerServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.OwnerServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>OwnerFamilyServlet</servlet-name>
+		<display-name>OwnerFamilyServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.OwnerFamilyServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>ContractServlet</servlet-name>
+		<display-name>ContractServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.ContractServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>PetServlet</servlet-name>
+		<display-name>PetServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.PetServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>DepartmentServlet</servlet-name>
+		<display-name>DepartmentServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.DepartmentServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>EmployeeServlet</servlet-name>
+		<display-name>EmployeeServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.EmployeeServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>CommunityServlet</servlet-name>
+		<display-name>CommunityServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.CommunityServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>ServerContractServlet</servlet-name>
+		<display-name>ServerContractServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.ServerContractServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>CarServlet</servlet-name>
+		<display-name>CarServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.CarServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>CommomServlet</servlet-name>
+		<display-name>CommomServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.CommomServlet</servlet-class>
+	</servlet>
+
+	<servlet>
+		<servlet-name>RoleServlet</servlet-name>
+		<display-name>RoleServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.RoleServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>UserServlet</servlet-name>
+		<display-name>UserServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.UserServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>BackupServlet</servlet-name>
+		<display-name>BackupServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.BackupServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>ChargeItemServlet</servlet-name>
+		<display-name>ChargeItemServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.ChargeItemServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>ChargeFormServlet</servlet-name>
+		<display-name>ChargeFormServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.ChargeFormServlet</servlet-class>
+	</servlet>
+	<servlet>
+		<servlet-name>FileUploadServlet</servlet-name>
+		<display-name>FileUploadServlet</display-name>
+		<description></description>
+		<servlet-class>pms.servlet.FileUploadServlet</servlet-class>
+	</servlet>
+
 	<servlet-mapping>
 		<servlet-name>SystemServlet</servlet-name>
 		<url-pattern>/setting</url-pattern>
@@ -99,4 +287,85 @@
 		<servlet-name>DispatcherServlet</servlet-name>
 		<url-pattern>*.action</url-pattern>
 	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>LogoutServlet</servlet-name>
+		<url-pattern>/logout</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>CompanyServlet</servlet-name>
+		<url-pattern>/company</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>BuildingServlet</servlet-name>
+		<url-pattern>/building</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>RoomServlet</servlet-name>
+		<url-pattern>/room</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>OwnerServlet</servlet-name>
+		<url-pattern>/owner</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>OwnerFamilyServlet</servlet-name>
+		<url-pattern>/ownerFamily</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>ContractServlet</servlet-name>
+		<url-pattern>/contract</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>PetServlet</servlet-name>
+		<url-pattern>/pet</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>DepartmentServlet</servlet-name>
+		<url-pattern>/department</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>EmployeeServlet</servlet-name>
+		<url-pattern>/employee</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>CommunityServlet</servlet-name>
+		<url-pattern>/community</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>ServerContractServlet</servlet-name>
+		<url-pattern>/serverContract</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>CarServlet</servlet-name>
+		<url-pattern>/car</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>CommomServlet</servlet-name>
+		<url-pattern>/comm</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>RoleServlet</servlet-name>
+		<url-pattern>/role</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>UserServlet</servlet-name>
+		<url-pattern>/user</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>BackupServlet</servlet-name>
+		<url-pattern>/db</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>ChargeItemServlet</servlet-name>
+		<url-pattern>/chargeItem</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>ChargeFormServlet</servlet-name>
+		<url-pattern>/chargeForm</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>FileUploadServlet</servlet-name>
+		<url-pattern>/file</url-pattern>
+	</servlet-mapping>
+
 </web-app>

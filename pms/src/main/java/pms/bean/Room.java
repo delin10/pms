@@ -7,8 +7,27 @@ public class Room{
 	private int floor_id;
 	private String room_layout;
 	private double room_area;
-	private double room_type;
+	private String room_type;
 	private String room_use;
+	
+	public Room() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public Room(String building_id, String community_name, String room_id, int floor_id, String room_layout,
+			double room_area, String room_type, String room_use, int is_vacancy, int decorated) {
+		super();
+		this.building_id = building_id;
+		this.community_name = community_name;
+		this.room_id = room_id;
+		this.floor_id = floor_id;
+		this.room_layout = room_layout;
+		this.room_area = room_area;
+		this.room_type = room_type;
+		this.room_use = room_use;
+		this.is_vacancy = is_vacancy;
+		this.decorated = decorated;
+	}
 	public String getBuilding_id() {
 		return building_id;
 	}
@@ -30,8 +49,8 @@ public class Room{
 	public int getFloor_id() {
 		return floor_id;
 	}
-	public void setFloor_id(int floor_id) {
-		this.floor_id = floor_id;
+	public void setFloor_id(String floor_id) {
+		this.floor_id = Integer.parseInt(floor_id);
 	}
 	public String getRoom_layout() {
 		return room_layout;
@@ -42,13 +61,13 @@ public class Room{
 	public double getRoom_area() {
 		return room_area;
 	}
-	public void setRoom_area(double room_area) {
-		this.room_area = room_area;
+	public void setRoom_area(String room_area) {
+		this.room_area = Double.parseDouble(room_area);
 	}
-	public double getRoom_type() {
+	public String getRoom_type() {
 		return room_type;
 	}
-	public void setRoom_type(double room_type) {
+	public void setRoom_type(String room_type) {
 		this.room_type = room_type;
 	}
 	public String getRoom_use() {
@@ -60,14 +79,14 @@ public class Room{
 	public int getIs_vacancy() {
 		return is_vacancy;
 	}
-	public void setIs_vacancy(int is_vacancy) {
-		this.is_vacancy = is_vacancy;
+	public void setIs_vacancy(String is_vacancy) {
+		this.is_vacancy = Integer.parseInt(is_vacancy);
 	}
 	public int getDecorated() {
 		return decorated;
 	}
-	public void setDecorated(int decorated) {
-		this.decorated = decorated;
+	public void setDecorated(String decorated) {
+		this.decorated = Integer.parseInt(decorated);
 	}
 	private int is_vacancy;
 	private int decorated;

@@ -1,24 +1,22 @@
 package pms.bean;
 
-import java.io.InputStream;
+import com.alibaba.fastjson.annotation.JSONField;
 
-import pms.util.reflect.anno.Skip;
+import pms.util.db.anno.Col;
+import pms.util.reflect.anno.Setter;
 
 public class Company{
 	private String info;
 	private String description;
 	private String legal_person;
-	@Skip(skip=true)
-	private InputStream imgUrl;
+	@Col(blob=true,alias="imgUrl",col="imgUrl")
+	@Setter(setter=byte[].class)
+	@JSONField(serialize=false)
+	private byte[] imgUrl;
 	private String address;
 	private String contact_tel;
 	private String contact_email;
-	public String getInfo() {
-		return info;
-	}
-	public void setInfo(String info) {
-		this.info = info;
-	}
+	
 	public String getDescription() {
 		return description;
 	}
@@ -31,10 +29,10 @@ public class Company{
 	public void setLegal_person(String legal_person) {
 		this.legal_person = legal_person;
 	}
-	public InputStream getImgUrl() {
+	public byte[]  getImgUrl() {
 		return imgUrl;
 	}
-	public void setImgUrl(InputStream imgUrl) {
+	public void setImgUrl(byte[]  imgUrl) {
 		this.imgUrl = imgUrl;
 	}
 	public String getAddress() {
@@ -54,5 +52,11 @@ public class Company{
 	}
 	public void setContact_email(String contact_email) {
 		this.contact_email = contact_email;
+	}
+	public String getInfo() {
+		return info;
+	}
+	public void setInfo(String info) {
+		this.info = info;
 	}
 }
